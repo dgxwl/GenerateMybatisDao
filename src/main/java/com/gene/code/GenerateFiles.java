@@ -86,7 +86,7 @@ public class GenerateFiles {
 		String finalParentPath = builder.toString();
 		
 		generateEntity(finalParentPath, packageName);
-		generateMapper(finalParentPath);
+		generateMapper(finalParentPath, packageName);
 		generateService(finalParentPath);
 	}
 	
@@ -100,10 +100,7 @@ public class GenerateFiles {
 			if (table.getTableName().indexOf('_') == -1) {
 				entityName = table.getTableName();
 			} else {
-				entityName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1);
-				char[] chs = entityName.toCharArray();
-				chs[0] -= 32;
-				entityName = String.valueOf(chs);
+				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
 			}
 			
 			List<Column> fields = table.getAllColumns();
@@ -112,12 +109,13 @@ public class GenerateFiles {
 			if (!f.exists()) {
 				f.mkdirs();
 			}
-			File entity = new File(parentPath + "/entity/" + entityName + ".java");
+			String fileName = parentPath + "/entity/" + entityName + ".java";
+			File entity = new File(fileName);
 			entity.createNewFile();
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(parentPath + "/entity/" + entityName + ".java"), "utf-8"));
+									new FileOutputStream(fileName), "utf-8"));
 			) {
 				StringBuilder sbBeforeClass = new StringBuilder();
 				sbBeforeClass.append("package " + packageName + "\n\n");
@@ -125,7 +123,7 @@ public class GenerateFiles {
 				
 				StringBuilder sbAfterClass = new StringBuilder();
 				sbAfterClass.append("@Data\n");
-				sbAfterClass.append("public class " + entityName + "{\n");
+				sbAfterClass.append("public class " + entityName + " {\n");
 				for (Column column : fields) {
 					String fieldName = column.getColumnName();
 					String fieldType = typeMap.get(column.getType());
@@ -153,8 +151,8 @@ public class GenerateFiles {
 				sbBeforeClass.append(sbAfterClass);
 				bw.write(sbBeforeClass.toString());
 				bw.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
+			} catch (Exception e) {
+				throw new IOException(e);
 			}
 		}
 	}
@@ -185,9 +183,63 @@ public class GenerateFiles {
 	
 	/**
 	 * 生成mapper接口文件
+	 * @throws IOException 
 	 */
-	private static void generateMapper(String parentPath) {
-		
+	private static void generateMapper(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String entityName = null;
+			if (table.getTableName().indexOf('_') == -1) {
+				entityName = table.getTableName();
+			} else {
+				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+			}
+			String mapperName = toTitleCase(entityName + "Mapper");
+			List<PrimaryKey> keys = table.getAllPrimaryKeys();
+			
+			File f = new File(parentPath + "/mapper");
+			if (!f.exists()) {
+				f.mkdirs();
+			}
+			String fileName = parentPath + "/mapper/" + mapperName + ".java";
+			File entity = new File(fileName);
+			entity.createNewFile();
+			try (
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(
+									new FileOutputStream(fileName), "utf-8"));
+			) {
+				StringBuilder builder = new StringBuilder();
+				builder.append("package " + packageName + "\n\n");
+				
+				builder.append("import java.util.List;\n");
+				builder.append("import org.apache.ibatis.annotations.Param;\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
+				builder.append("import "+ packageName +".entity." + entityName + ";\n");
+				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
+				
+				builder.append("public interface " + mapperName + " {\n\n");
+				
+				for (PrimaryKey key : keys) {
+					String keyName = key.getPkName();
+					String keyType = typeMap.get(key.getPkType());
+					builder.append("\tList<" + entityName + "> " + "findBy"
+					+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ");\n");
+					builder.append("\tInteger " + "deleteBy"
+					+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ");\n");
+				}
+				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
+				builder.append("\tList<" + entityName + "> " + "findAll();\n");
+				builder.append("\tList<" + entityName + "> " + "findWithLimit(PageBounds pageBounds);\n");
+				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
+				builder.append("\tInteger " + "update(" + entityName + " entity);\n");
+				builder.append("\n}\n");
+				
+				bw.write(builder.toString());
+				bw.flush();
+			} catch (IOException e) {
+				throw new IOException(e);
+			}
+		}
 	}
 	
 	/**
@@ -195,5 +247,17 @@ public class GenerateFiles {
 	 */
 	private static void generateService(String parentPath) {
 		
+	}
+	
+	/**
+	 * 首字母变大写
+	 * @return 首字母大写的字符串
+	 */
+	private static String toTitleCase(String str) {
+		char[] chs = str.toCharArray();
+		if (chs[0] >= 97 && chs[0] <= 122) {
+			chs[0] -= 32;
+		}
+		return String.valueOf(chs);
 	}
 }

@@ -51,6 +51,7 @@ public class TableHandler {
 					column.setRemarks(remarks);
 
 					table.addColumn(column);
+					table.addColumnNameAndType(columnName, type);
 				}
 				
 				//获取主键元数据
@@ -62,6 +63,8 @@ public class TableHandler {
 					primaryKey.setPkName(pkName);
 					int keySeq = pkSet.getInt("KEY_SEQ");
 					primaryKey.setSeq(keySeq);
+					String pkType = table.getTypeByColumnName(pkName);
+					primaryKey.setPkType(pkType);
 					
 					table.addPrimaryKey(primaryKey);
 				}
