@@ -79,7 +79,7 @@ public class GenerateFiles {
 			} while (pathFile.exists());
 		}
 		
-		generateXmlMappers(builder.toString());
+		generateXmlMappers(builder.toString(), packageName);
 		
 		//拼接包名路径
 		builder.append('/').append(packageName.replace('.', '/'));
@@ -98,7 +98,7 @@ public class GenerateFiles {
 		for (Table table : tables) {
 			String entityName = null;
 			if (table.getTableName().indexOf('_') == -1) {
-				entityName = table.getTableName();
+				entityName = toTitleCase(table.getTableName());
 			} else {
 				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
 			}
@@ -158,30 +158,6 @@ public class GenerateFiles {
 	}
 	
 	/**
-	 * 生成mapper映射器文件
-	 * @throws IOException 
-	 */
-	private static void generateXmlMappers(String parentPath) throws IOException {
-		try {
-//			File f = new File(parentPath + "/mappers");
-//			if (!f.exists()) {
-//				f.mkdirs();
-//			}
-//			
-//			File mapper1 = new File(parentPath + "/mappers" + "/a.txt");
-//			mapper1.createNewFile();
-//			PrintWriter printWriter = new PrintWriter(
-//					new BufferedOutputStream(
-//							new FileOutputStream(parentPath + "/mappers" + "/a.txt")), true);
-//			printWriter.println("hahahahahah");
-//			printWriter.println("hahahahahah");
-		} catch (Exception e) {
-			throw new IOException(e);
-		}
-//		printWriter.close();
-	}
-	
-	/**
 	 * 生成mapper接口文件
 	 * @throws IOException 
 	 */
@@ -189,7 +165,7 @@ public class GenerateFiles {
 		for (Table table : tables) {
 			String entityName = null;
 			if (table.getTableName().indexOf('_') == -1) {
-				entityName = table.getTableName();
+				entityName = toTitleCase(table.getTableName());
 			} else {
 				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
 			}
@@ -219,21 +195,151 @@ public class GenerateFiles {
 				
 				builder.append("public interface " + mapperName + " {\n\n");
 				
+				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
+				builder.append("\tInteger " + "update(" + entityName + " entity);\n");
+				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
+				builder.append("\tList<" + entityName + "> " + "findAll();\n");
+				builder.append("\tList<" + entityName + "> " + "findWithLimit(@Param(\"myQuery\") MyQuery myQuery, PageBounds pageBounds);\n");
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
-					builder.append("\tList<" + entityName + "> " + "findBy"
-					+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ");\n");
-					builder.append("\tInteger " + "deleteBy"
-					+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ");\n");
+					builder.append("\t" + entityName + " findBy" + toTitleCase(keyName)
+									+ "(" + keyType + " " + keyName + ");\n");
+					builder.append("\tInteger " + "deleteBy" + toTitleCase(keyName)
+									+ "(" + keyType + " " + keyName + ");\n");
 				}
-				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
-				builder.append("\tList<" + entityName + "> " + "findAll();\n");
-				builder.append("\tList<" + entityName + "> " + "findWithLimit(PageBounds pageBounds);\n");
-				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
-				builder.append("\tInteger " + "update(" + entityName + " entity);\n");
+				
 				builder.append("\n}\n");
 				
+				bw.write(builder.toString());
+				bw.flush();
+			} catch (IOException e) {
+				throw new IOException(e);
+			}
+		}
+	}
+	
+	/**
+	 * 生成mapper映射器文件
+	 * @throws IOException 
+	 */
+	private static void generateXmlMappers(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String entityName = null;
+			if (table.getTableName().indexOf('_') == -1) {
+				entityName = toTitleCase(table.getTableName());
+			} else {
+				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+			}
+			String mapperName = toTitleCase(entityName + "Mapper");
+			List<PrimaryKey> keys = table.getAllPrimaryKeys();
+			
+			File f = new File(parentPath + "/mapper");
+			if (!f.exists()) {
+				f.mkdirs();
+			}
+			String fileName = parentPath + "/mapper/" + mapperName + ".xml";
+			File entity = new File(fileName);
+			entity.createNewFile();
+			try (
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(
+									new FileOutputStream(fileName), "utf-8"));
+			) {
+				StringBuilder builder = new StringBuilder();
+				builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+				builder.append("<!DOCTYPE mapper\n");
+				builder.append("  PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\"\n");
+				builder.append("  \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n\n");
+				
+				builder.append("<mapper namespace=\"" + packageName + ".mapper." + entityName + "Mapper\">\n\n");
+				
+				//SAVE
+				builder.append("\t<insert id=\"save\" ");
+				//暂时中断save, 需要获取自增主键再继续
+				StringBuilder builderFindBy = new StringBuilder();
+				String autoIncrementId = null;
+				for (PrimaryKey key : keys) {
+					//搞掂save的主键自增
+					String keyName = key.getPkName();
+					String keyType = typeMap.get(key.getPkType());
+					if (keyType.equals("Integer")) {
+						autoIncrementId = keyName;
+						builder.append("useGeneratedKeys=\"true\" keyProperty=\"" + keyName + "\" ");
+					}
+					
+					//用builderFindBy搞掂根据主键查询的各方法, 出了循环拼回原builder
+					builderFindBy.append("\t<select id=\"findBy" + toTitleCase(keyName) + "\" "
+							+ "resultType=\"" + packageName + ".entity." + entityName + "\">\n");
+					builderFindBy.append("\t\tSELECT *\n");
+					builderFindBy.append("\t\tFROM " + table.getTableName() + "\n");
+					builderFindBy.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
+					builderFindBy.append("\t</select>\n\n");
+				}
+				//这里继续完成save
+				builder.append("parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
+				builder.append("\t\tINSERT INTO " + table.getTableName() + " (\n");
+				//需要遍历所有字段, 再次中断save
+				
+				//UPDATE
+				StringBuilder builderUpdate = new StringBuilder();
+				builderUpdate.append("\t<update id=\"update\" parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
+				builderUpdate.append("\t\tUPDATE " + table.getTableName() + "\n");
+				builderUpdate.append("\t\t<set>\n");
+				
+				StringBuilder builderAfterValues = new StringBuilder();  //保存 ) VALUES ( 后面的插入字段
+				int i = 1;
+				for (Column c : table.getAllColumns()) {
+					String columnName = c.getColumnName();
+					//搞掂save的插入字段
+					if (!columnName.equals(autoIncrementId)) {
+						builder.append("\t\t\t" + columnName + ",\n");
+						builderAfterValues.append("\t\t\t#{" + columnName + "},\n");
+					}
+					
+					//搞掂update
+					if (!columnName.equals(autoIncrementId)) {
+						builderUpdate.append("\t\t<if test=\"" + columnName + "!=null and " + columnName + "!=''\">\n");
+						builderUpdate.append("\t\t" + columnName + "=#{" + columnName + "}");
+						if (i == table.getAllColumns().size()) {
+							builderUpdate.append("\n");
+						} else {
+							builderUpdate.append(",\n");
+						}
+						builderUpdate.append("\t\t</if>\n");
+					}
+					i++;
+				}
+				builderUpdate.append("\t\t</set>\n");
+				builderUpdate.append("\t\tWHERE " + autoIncrementId + "=#{" + autoIncrementId + "}\n");
+				builderUpdate.append("\t</update>\n\n");
+				//删去最后一轮循环多出的",\n"
+				builder.deleteCharAt(builder.length() - 1);
+				builder.deleteCharAt(builder.length() - 1);
+				builder.append("\n");
+				builderAfterValues.deleteCharAt(builderAfterValues.length() - 1);
+				builderAfterValues.deleteCharAt(builderAfterValues.length() - 1);
+				builderAfterValues.append("\n");
+				//继续save
+				builder.append("\t\t) VALUES (\n");
+				//把builderAfterValues拼回builder
+				builder.append(builderAfterValues);
+				builder.append("\t\t)\n");
+				builder.append("\t</insert>\n\n");  //完成save!
+				//把builderUpdate拼回builder
+				builder.append(builderUpdate);
+				//把builderFindBy拼回builder
+				builder.append(builderFindBy);
+				
+				//findByField
+				
+				//findWithLimit
+				
+				//findAll
+				
+				//delete
+				
+				builder.append("</mapper>");
 				bw.write(builder.toString());
 				bw.flush();
 			} catch (IOException e) {
