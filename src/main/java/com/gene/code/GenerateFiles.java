@@ -1,10 +1,10 @@
 package com.gene.code;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +20,8 @@ public class GenerateFiles {
 	private static List<Table> tables = TableHandler.getTables();
 	//映射SQL数据类型和Java数据类型
 	private static Map<String, String> typeMap = new HashMap<>();
+	//映射Java数据类型和import声明
+	private static Map<String, String> typeImportMap = new HashMap<>();
 	static {
 		typeMap.put("CHAR", "String");
 		typeMap.put("VARCHAR", "String");
@@ -44,6 +46,9 @@ public class GenerateFiles {
 		typeMap.put("YEAR", "Date");
 		typeMap.put("DATETIME", "Date");
 		typeMap.put("TIMESTAMP", "Date");
+		
+		typeImportMap.put("BigDecimal", "import java.math.BigDecimal;");
+		typeImportMap.put("Date", "import java.util.Date;");
 	}
 	
 	public static void main(String[] args) {
@@ -110,24 +115,44 @@ public class GenerateFiles {
 			File entity = new File(parentPath + "/entity/" + entityName + ".java");
 			entity.createNewFile();
 			try (
-					PrintWriter pw = new PrintWriter(
+					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(parentPath + "/entity/" + entityName + ".java"), "utf-8"), true);
+									new FileOutputStream(parentPath + "/entity/" + entityName + ".java"), "utf-8"));
 			) {
-				pw.println("package " + packageName);
-				pw.println();
-				pw.println("import lombok.Data;");
-				pw.println();
-				pw.println("@Data");
-				pw.println("public class " + entityName + "{");
+				StringBuilder sbBeforeClass = new StringBuilder();
+				sbBeforeClass.append("package " + packageName + "\n\n");
+				sbBeforeClass.append("import lombok.Data;\n");
+				
+				StringBuilder sbAfterClass = new StringBuilder();
+				sbAfterClass.append("@Data\n");
+				sbAfterClass.append("public class " + entityName + "{\n");
 				for (Column column : fields) {
 					String fieldName = column.getColumnName();
 					String fieldType = typeMap.get(column.getType());
+					
+					switch (fieldType) {
+					case "Date":
+						if (sbBeforeClass.indexOf(typeImportMap.get(fieldType)) == -1) {
+							sbBeforeClass.append(typeImportMap.get(fieldType) + "\n");
+						}
+						break;
+					case "BigDecimal":
+						if (sbBeforeClass.indexOf(typeImportMap.get(fieldType)) == -1) {
+							sbBeforeClass.append(typeImportMap.get(fieldType) + "\n");
+						}
+						break;
+					}
 					boolean hasRemark = column.getRemarks() != null && !column.getRemarks().equals("");
 					
-					pw.println("\tprivate " + fieldType + " " + fieldName + ";" + (hasRemark ? "  //" + column.getRemarks() : ""));
+					sbAfterClass.append("\tprivate " + fieldType + " " + fieldName + ";"
+										+ (hasRemark ? "  //" + column.getRemarks() : "") + "\n");
 				}
-				pw.println("}");
+				sbAfterClass.append("}\n");
+				
+				sbBeforeClass.append("\n");
+				sbBeforeClass.append(sbAfterClass);
+				bw.write(sbBeforeClass.toString());
+				bw.flush();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
