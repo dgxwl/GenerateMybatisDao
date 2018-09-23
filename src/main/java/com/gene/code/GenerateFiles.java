@@ -88,6 +88,7 @@ public class GenerateFiles {
 		generateEntity(finalParentPath, packageName);
 		generateMapper(finalParentPath, packageName);
 		generateService(finalParentPath, packageName);
+		generateController(finalParentPath, packageName);
 	}
 	
 	/**
@@ -490,11 +491,165 @@ public class GenerateFiles {
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				}
+				builder.append("\t\tif (pageBounds == null) {\n");
+				builder.append("\t\t\tpageBounds = new PageBounds();\n");
+				builder.append("\t\t\ttpageBounds.setLimit(10);\n");
+				builder.append("\t\t\ttpageBounds.setPage(1);\n");
+				builder.append("\t\t}\n");
 				builder.append("\t\treturn " + mapperVarName + ".findWithLimit(myQuery, pageBounds);\n");
 				builder.append("\t}\n\n");
 				
 				builder.append("\tpublic Integer update(" + entityName + " entity) {\n");
 				builder.append("\t\treturn " + mapperVarName + ".update(entity);\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("}");
+				
+				bw.write(builder.toString());
+				bw.flush();
+			} catch (IOException e) {
+				throw new IOException(e);
+			}
+		}
+	}
+	
+	/**
+	 * 生成controller文件
+	 * @param finalParentPath
+	 * @param packageName
+	 * @throws IOException 
+	 */
+	private static void generateController(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String entityName = null;
+			String serviceVarName = null;
+			if (table.getTableName().indexOf('_') == -1) {
+				entityName = toTitleCase(table.getTableName());
+			} else {
+				serviceVarName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1) + "Service";
+				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+			}
+			String controllerName = toTitleCase(entityName + "Controller");
+			String serviceName = entityName + "Service";
+			List<PrimaryKey> keys = table.getAllPrimaryKeys();
+			
+			File f = new File(parentPath + "/controller");
+			if (!f.exists()) {
+				f.mkdirs();
+			}
+			String fileName = parentPath + "/controller/" + controllerName + ".java";
+			File entity = new File(fileName);
+			entity.createNewFile();
+			try (
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(
+									new FileOutputStream(fileName), "utf-8"));
+			) {
+				StringBuilder builder = new StringBuilder();
+				
+				builder.append("package " + packageName + ".controller;\n\n");
+
+				builder.append("import java.util.List;\n");
+				builder.append("import org.springframework.web.bind.annotation.RestController;\n");
+				builder.append("import org.springframework.web.bind.annotation.RequestMapping;\n");
+				builder.append("import org.springframework.web.bind.annotation.RequestMethod;\n");
+				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
+				builder.append("import "+ packageName +".service." + serviceName + ";\n");
+				builder.append("import "+ packageName +".entity." + entityName + ";\n");
+				builder.append("import " + packageName + ".domain.ResponseResult;\n");
+				builder.append("import " + packageName + ".domain.ResponseListResult;\n");
+				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
+				
+				builder.append("@RestController\n");
+				builder.append("public class " + controllerName + " {\n\n");
+				
+				builder.append("\t@Autowired\n");
+				builder.append("\tprivate " + serviceName + " " + serviceVarName + ";\n\n");
+				
+				builder.append("\t@RequestMapping(\"/list\")\n");
+				builder.append("\tpublic ResponseListResult<" + entityName + "> list(MyQuery myQuery, PageBounds pageBounds) {\n");
+				builder.append("\t\tResponseListResult<" + entityName + "> rr = new ResponseListResult<>();\n");
+				builder.append("\t\ttry {\n");
+				builder.append("\t\t\trr.setResult(1);\n");
+				builder.append("\t\t\trr.setRows(" + serviceVarName + ".findWithLimit(myQuery, pageBounds));\n");
+				builder.append("\t\t} catch (Exception e) {\n");
+				builder.append("\t\t\te.printStackTrace();\n");
+				builder.append("\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t}\n");
+				builder.append("\t\treturn rr;\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("\t@RequestMapping(value = \"/save\", method = RequestMethod.POST)\n");
+				builder.append("\tpublic ResponseResult save(" + entityName + " entity) {\n");
+				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
+				builder.append("\t\ttry {\n");
+				builder.append("\t\t\tInteger result = " + serviceVarName + ".save(entity);\n");
+				builder.append("\t\t\tif (result > 0) {\n");
+				builder.append("\t\t\t\trr.setResult(1);\n");
+				builder.append("\t\t\t\trr.setMessage(\"保存成功\");\n");
+				builder.append("\t\t\t} else {\n");
+				builder.append("\t\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t\t}\n");
+				builder.append("\t\t} catch (Exception e) {\n");
+				builder.append("\t\t\te.printStackTrace();\n");
+				builder.append("\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t}\n");
+				builder.append("\t\treturn rr;\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
+				builder.append("\tpublic ResponseResult update(" + entityName + " entity) {\n");
+				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
+				builder.append("\t\ttry {\n");
+				builder.append("\t\t\tInteger result = " + serviceVarName + ".update(entity);\n");
+				builder.append("\t\t\tif (result > 0) {\n");
+				builder.append("\t\t\t\trr.setResult(1);\n");
+				builder.append("\t\t\t\trr.setMessage(\"修改成功\");\n");
+				builder.append("\t\t\t} else {\n");
+				builder.append("\t\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t\t}\n");
+				builder.append("\t\t} catch (Exception e) {\n");
+				builder.append("\t\t\te.printStackTrace();\n");
+				builder.append("\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t}\n");
+				builder.append("\t\treturn rr;\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("\t@RequestMapping(value = \"/delete\", method = RequestMethod.POST)\n");
+				
+				String autoIncrementId = null;
+				for (PrimaryKey key : keys) {
+					String keyName = key.getPkName();
+					String keyType = typeMap.get(key.getPkType());
+					if (keyType.equals("Integer")) {
+						autoIncrementId = keyName;
+					}
+					
+				}
+				builder.append("\tpublic ResponseResult delete(Integer " + autoIncrementId + ") {\n");
+				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
+				builder.append("\t\ttry {\n");
+				builder.append("\t\t\tInteger result = " + serviceVarName + ".deleteBy"
+								+ toTitleCase(autoIncrementId) + "(" + autoIncrementId + ");\n");
+				builder.append("\t\t\tif (result > 0) {\n");
+				builder.append("\t\t\t\trr.setResult(1);\n");
+				builder.append("\t\t\t\trr.setMessage(\"删除成功\");\n");
+				builder.append("\t\t\t} else {\n");
+				builder.append("\t\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t\t}\n");
+				builder.append("\t\t} catch (Exception e) {\n");
+				builder.append("\t\t\te.printStackTrace();\n");
+				builder.append("\t\t\trr.setResult(-100);\n");
+				builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t}\n");
+				builder.append("\t\treturn rr;\n");
 				builder.append("\t}\n\n");
 				
 				builder.append("}");
