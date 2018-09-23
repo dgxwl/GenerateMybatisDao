@@ -234,11 +234,11 @@ public class GenerateFiles {
 			String mapperName = toTitleCase(entityName + "Mapper");
 			List<PrimaryKey> keys = table.getAllPrimaryKeys();
 			
-			File f = new File(parentPath + "/mapper");
+			File f = new File(parentPath + "/mappers");
 			if (!f.exists()) {
 				f.mkdirs();
 			}
-			String fileName = parentPath + "/mapper/" + mapperName + ".xml";
+			String fileName = parentPath + "/mappers/" + mapperName + ".xml";
 			File entity = new File(fileName);
 			entity.createNewFile();
 			try (
@@ -257,8 +257,10 @@ public class GenerateFiles {
 				//SAVE
 				builder.append("\t<insert id=\"save\" ");
 				//暂时中断save, 需要获取自增主键再继续
-				StringBuilder builderFindBy = new StringBuilder();
+				StringBuilder builderFindByPk = new StringBuilder();
 				String autoIncrementId = null;
+				//delete需要获取所有主键, 在这完成后到最后拼接
+				StringBuilder builderDelete = new StringBuilder();
 				for (PrimaryKey key : keys) {
 					//搞掂save的主键自增
 					String keyName = key.getPkName();
@@ -268,13 +270,19 @@ public class GenerateFiles {
 						builder.append("useGeneratedKeys=\"true\" keyProperty=\"" + keyName + "\" ");
 					}
 					
-					//用builderFindBy搞掂根据主键查询的各方法, 出了循环拼回原builder
-					builderFindBy.append("\t<select id=\"findBy" + toTitleCase(keyName) + "\" "
+					//用builderFindByPk搞掂根据主键查询的各方法, 出了循环拼回原builder
+					builderFindByPk.append("\t<select id=\"findBy" + toTitleCase(keyName) + "\" "
 							+ "resultType=\"" + packageName + ".entity." + entityName + "\">\n");
-					builderFindBy.append("\t\tSELECT *\n");
-					builderFindBy.append("\t\tFROM " + table.getTableName() + "\n");
-					builderFindBy.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
-					builderFindBy.append("\t</select>\n\n");
+					builderFindByPk.append("\t\tSELECT *\n");
+					builderFindByPk.append("\t\tFROM " + table.getTableName() + "\n");
+					builderFindByPk.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
+					builderFindByPk.append("\t</select>\n\n");
+					
+					//各款delete
+					builderDelete.append("\t<delete id=\"deleteBy" + toTitleCase(keyName) + "\">\n");
+					builderDelete.append("\t\tDELETE FROM " + table.getTableName() + "\n");
+					builderDelete.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
+					builderDelete.append("\t</delete>\n\n");
 				}
 				//这里继续完成save
 				builder.append("parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
@@ -328,16 +336,50 @@ public class GenerateFiles {
 				builder.append("\t</insert>\n\n");  //完成save!
 				//把builderUpdate拼回builder
 				builder.append(builderUpdate);
-				//把builderFindBy拼回builder
-				builder.append(builderFindBy);
+				//把builderFindByPk拼回builder
+				builder.append(builderFindByPk);
 				
 				//findByField
+				builder.append("\t<select id=\"" + "findByField" + "\" resultType=\""
+								+ packageName + ".entity." + entityName + "\">\n");
+				builder.append("\t\tSELECT *\n");
+				builder.append("\t\tFROM " + table.getTableName() + "\n");
+				builder.append("\t\t<where>\n");
+				i = 1;
+				for (Column c : table.getAllColumns()) {
+					String columnName = c.getColumnName();
+					if (!columnName.equals(autoIncrementId)) {
+						builder.append("\t\t\t<if test=\"" + columnName + "!=null and " + columnName + "!=''\">\n");
+						builder.append("\t\t\t" + columnName + "=#{" + columnName);
+						if (i == table.getAllColumns().size()) {
+							builder.append("}\n");
+						} else {
+							builder.append("},\n");
+						}
+						builder.append("\t\t\t</if>\n");
+					}
+					i++;
+				}
+				builder.append("\t\t</where>\n");
+				builder.append("\t</select>\n\n");
 				
 				//findWithLimit
+				builder.append("\t<select id=\"findWithLimit\" resultType=\""
+								+ packageName + ".entity." + entityName + "\">\n");
+				builder.append("\t\tSELECT *\n");
+				builder.append("\t\tFROM " + table.getTableName() + "\n");
+				builder.append("\t\tORDER BY ${myQuery.orderField} ${myQuery.orderType}\n");
+				builder.append("\t</select>\n\n");
 				
 				//findAll
+				builder.append("\t<select id=\"findAll\" resultType=\""
+								+ packageName + ".entity." + entityName + "\">\n");
+				builder.append("\t\tSELECT *\n");
+				builder.append("\t\tFROM " + table.getTableName() + "\n");
+				builder.append("\t</select>\n\n");
 				
 				//delete
+				builder.append(builderDelete);
 				
 				builder.append("</mapper>");
 				bw.write(builder.toString());
