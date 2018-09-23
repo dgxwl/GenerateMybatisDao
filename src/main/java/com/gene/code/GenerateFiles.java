@@ -87,7 +87,7 @@ public class GenerateFiles {
 		
 		generateEntity(finalParentPath, packageName);
 		generateMapper(finalParentPath, packageName);
-		generateService(finalParentPath);
+		generateService(finalParentPath, packageName);
 	}
 	
 	/**
@@ -118,7 +118,7 @@ public class GenerateFiles {
 									new FileOutputStream(fileName), "utf-8"));
 			) {
 				StringBuilder sbBeforeClass = new StringBuilder();
-				sbBeforeClass.append("package " + packageName + "\n\n");
+				sbBeforeClass.append("package " + packageName + ".entity;\n\n");
 				sbBeforeClass.append("import lombok.Data;\n");
 				
 				StringBuilder sbAfterClass = new StringBuilder();
@@ -185,7 +185,7 @@ public class GenerateFiles {
 									new FileOutputStream(fileName), "utf-8"));
 			) {
 				StringBuilder builder = new StringBuilder();
-				builder.append("package " + packageName + "\n\n");
+				builder.append("package " + packageName + ".mapper;\n\n");
 				
 				builder.append("import java.util.List;\n");
 				builder.append("import org.apache.ibatis.annotations.Param;\n");
@@ -392,9 +392,119 @@ public class GenerateFiles {
 	
 	/**
 	 * 生成service文件
+	 * @throws IOException 
 	 */
-	private static void generateService(String parentPath) {
-		
+	private static void generateService(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String entityName = null;
+			String mapperVarName = null;
+			if (table.getTableName().indexOf('_') == -1) {
+				entityName = toTitleCase(table.getTableName());
+			} else {
+				mapperVarName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1) + "Mapper";
+				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+			}
+			String serviceName = toTitleCase(entityName + "Service");
+			String mapperName = entityName + "Mapper";
+			List<PrimaryKey> keys = table.getAllPrimaryKeys();
+			
+			File f = new File(parentPath + "/service");
+			if (!f.exists()) {
+				f.mkdirs();
+			}
+			String fileName = parentPath + "/service/" + serviceName + ".java";
+			File entity = new File(fileName);
+			entity.createNewFile();
+			try (
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(
+									new FileOutputStream(fileName), "utf-8"));
+			) {
+				StringBuilder builder = new StringBuilder();
+				builder.append("package " + packageName + ".service;\n\n");
+				
+				builder.append("import java.util.List;\n");
+				builder.append("import org.springframework.stereotype.Service;\n");
+				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
+				builder.append("import "+ packageName +".mapper." + entityName + "Mapper;\n");
+				builder.append("import "+ packageName +".entity." + entityName + ";\n");
+				builder.append("import " + packageName + ".domain.ResponseResult;\n");
+				builder.append("import " + packageName + ".domain.ResponseListResult;\n");
+				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
+				
+				builder.append("@Service\n");
+				builder.append("public class " + serviceName + " {\n\n");
+				
+				builder.append("\t@Autowired\n");
+				builder.append("\tprivate " + mapperName + " " + mapperVarName + ";\n\n");
+				
+				builder.append("\tpublic Integer save(" + entityName +" entity) {\n");
+				builder.append("\t\treturn " + mapperVarName + ".save(entity);\n");
+				builder.append("\t}\n\n");
+				
+				StringBuilder builderFindBy = new StringBuilder();
+				String autoIncrementId = null;
+				String otherTypePk = null;
+				for (PrimaryKey key : keys) {
+					String keyName = key.getPkName();
+					String keyType = typeMap.get(key.getPkType());
+					if (keyType.equals("Integer")) {
+						autoIncrementId = keyName;
+					} else if (keyType.equals("String")) {
+						otherTypePk = keyName;
+					}
+
+					builder.append("\tpublic Integer " + "deleteBy" + toTitleCase(keyName)
+									+ "(" + keyType + " " + keyName + "){ \n");
+					builder.append("\t\treturn " + mapperVarName + ".deleteBy"
+									+ toTitleCase(keyName) + "(" + keyName + ");\n");
+					builder.append("\t}\n\n");
+					
+					builderFindBy.append("\tpublic List<" + entityName + "> findBy"
+								+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ") {\n");
+					builderFindBy.append("\t\treturn " + mapperVarName + ".findBy"
+								+ toTitleCase(keyName) + "(" + keyName + ");\n");
+					builderFindBy.append("\t}\n\n");
+				}
+				
+				builder.append(builderFindBy);
+				
+				builder.append("\tpublic List<" + entityName + "> findByField(" + entityName + " entity) {\n");
+				builder.append("\t\treturn " + mapperVarName + ".findByField(entity);\n");
+				builder.append("\t}\n\n");
+
+				builder.append("\tpublic List<" + entityName + "> findAll() {\n");
+				builder.append("\t\treturn " + mapperVarName + ".findAll();\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("\tpublic List<" + entityName + "> findWithLimit(MyQuery myQuery, PageBounds pageBounds) {\n");
+				if (autoIncrementId != null) {
+					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
+					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
+					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
+					builder.append("\t\t}\n");
+				} else if (otherTypePk != null) {
+					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
+					builder.append("\t\t\tmyQuery.setOrderField(" + otherTypePk + ");\n");
+					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
+					builder.append("\t\t}\n");
+				}
+				builder.append("\t\treturn " + mapperVarName + ".findWithLimit(myQuery, pageBounds);\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("\tpublic Integer update(" + entityName + " entity) {\n");
+				builder.append("\t\treturn " + mapperVarName + ".update(entity);\n");
+				builder.append("\t}\n\n");
+				
+				builder.append("}");
+				
+				bw.write(builder.toString());
+				bw.flush();
+			} catch (IOException e) {
+				throw new IOException(e);
+			}
+		}
 	}
 	
 	/**
