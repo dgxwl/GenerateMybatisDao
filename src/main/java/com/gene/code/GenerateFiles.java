@@ -462,7 +462,7 @@ public class GenerateFiles {
 									+ toTitleCase(keyName) + "(" + keyName + ");\n");
 					builder.append("\t}\n\n");
 					
-					builderFindBy.append("\tpublic List<" + entityName + "> findBy"
+					builderFindBy.append("\tpublic " + entityName + " findBy"
 								+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ") {\n");
 					builderFindBy.append("\t\treturn " + mapperVarName + ".findBy"
 								+ toTitleCase(keyName) + "(" + keyName + ");\n");
@@ -493,8 +493,8 @@ public class GenerateFiles {
 				}
 				builder.append("\t\tif (pageBounds == null) {\n");
 				builder.append("\t\t\tpageBounds = new PageBounds();\n");
-				builder.append("\t\t\ttpageBounds.setLimit(10);\n");
-				builder.append("\t\t\ttpageBounds.setPage(1);\n");
+				builder.append("\t\t\tpageBounds.setLimit(10);\n");
+				builder.append("\t\t\tpageBounds.setPage(1);\n");
 				builder.append("\t\t}\n");
 				builder.append("\t\treturn " + mapperVarName + ".findWithLimit(myQuery, pageBounds);\n");
 				builder.append("\t}\n\n");
