@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,8 @@ public class GenerateFiles {
 	private static List<Table> tables = TableHandler.getTables();
 	//映射SQL数据类型和Java数据类型
 	private static Map<String, String> typeMap = new HashMap<>();
+	//映射SQL数据类型和Java数据类型(resultMap用到)
+	private static Map<String, String> fullNameTypeMap = new HashMap<>();
 	//映射Java数据类型和import声明
 	private static Map<String, String> typeImportMap = new HashMap<>();
 	static {
@@ -46,6 +49,30 @@ public class GenerateFiles {
 		typeMap.put("YEAR", "Date");
 		typeMap.put("DATETIME", "Date");
 		typeMap.put("TIMESTAMP", "Date");
+		
+		fullNameTypeMap.put("CHAR", "java.lang.String");
+		fullNameTypeMap.put("VARCHAR", "java.lang.String");
+		fullNameTypeMap.put("VARCHAR2", "java.lang.String");
+		fullNameTypeMap.put("NVARCHAR", "java.lang.String");
+		fullNameTypeMap.put("BLOB", "java.lang.Byte[]");
+		fullNameTypeMap.put("TEXT", "java.lang.String");
+		fullNameTypeMap.put("BIT", "java.lang.Boolean");
+		fullNameTypeMap.put("TINYINT", "java.lang.Integer");
+		fullNameTypeMap.put("SMALLINT", "java.lang.Integer");
+		fullNameTypeMap.put("MEDIUMINT", "java.lang.Integer");
+		fullNameTypeMap.put("INTEGER", "java.lang.Integer");
+		fullNameTypeMap.put("INT", "java.lang.Integer");
+		fullNameTypeMap.put("BIGINT", "java.lang.Long");
+		fullNameTypeMap.put("REAL", "java.math.BigDecimal");
+		fullNameTypeMap.put("DOUBLE", "java.lang.Double");
+		fullNameTypeMap.put("FLOAT", "java.lang.Float");
+		fullNameTypeMap.put("DECIMAL", "java.math.BigDecimal");
+		fullNameTypeMap.put("NUMERIC", "java.math.BigDecimal");
+		fullNameTypeMap.put("DATE", "java.math.Date");
+		fullNameTypeMap.put("TIME", "java.util.Date");
+		fullNameTypeMap.put("YEAR", "java.util.Date");
+		fullNameTypeMap.put("DATETIME", "java.util.Date");
+		fullNameTypeMap.put("TIMESTAMP", "java.util.Date");
 		
 		typeImportMap.put("BigDecimal", "import java.math.BigDecimal;");
 		typeImportMap.put("Date", "import java.util.Date;");
@@ -79,24 +106,29 @@ public class GenerateFiles {
 			} while (pathFile.exists());
 		}
 		
-		generateXmlMappers(builder.toString(), packageName);
+		String xmlPath = builder.toString();
 		
 		//拼接包名路径
 		builder.append('/').append(packageName.replace('.', '/'));
 		String finalParentPath = builder.toString();
 		
 		generateEntity(finalParentPath, packageName);
+		generateXmlMappers(xmlPath, packageName);
 		generateMapper(finalParentPath, packageName);
 		generateService(finalParentPath, packageName);
 		generateController(finalParentPath, packageName);
 	}
 	
+	private static List<Map<String, String>> resultMaps = new ArrayList<>();
 	/**
 	 * 生成entity实体类文件
 	 * @throws IOException 
 	 */
 	private static void generateEntity(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
+			Map<String, String> resultMap = new HashMap<>();
+			resultMaps.add(resultMap);
+			
 			String entityName = null;
 			if (table.getTableName().indexOf('_') == -1) {
 				entityName = toTitleCase(table.getTableName());
@@ -126,7 +158,22 @@ public class GenerateFiles {
 				sbAfterClass.append("@Data\n");
 				sbAfterClass.append("public class " + entityName + " {\n");
 				for (Column column : fields) {
-					String fieldName = column.getColumnName();
+					String fieldName;
+					//下划线字段名转驼峰命名
+					String[] data = column.getColumnName().split("[_]+");
+					if (data.length > 1) {
+						StringBuilder sb = new StringBuilder();
+						sb.append(data[0]);
+						for (int i = 1; i < data.length; i++) {
+							data[i] = toTitleCase(data[i]);
+							sb.append(data[i]);
+						}
+						fieldName = sb.toString();
+						
+						resultMap.put(column.getColumnName(), fieldName);
+					} else {
+						fieldName = column.getColumnName();
+					}
 					String fieldType = typeMap.get(column.getType());
 					
 					switch (fieldType) {
@@ -225,6 +272,7 @@ public class GenerateFiles {
 	 * @throws IOException 
 	 */
 	private static void generateXmlMappers(String parentPath, String packageName) throws IOException {
+		int index = 0;
 		for (Table table : tables) {
 			String entityName = null;
 			if (table.getTableName().indexOf('_') == -1) {
@@ -255,9 +303,8 @@ public class GenerateFiles {
 				
 				builder.append("<mapper namespace=\"" + packageName + ".mapper." + entityName + "Mapper\">\n\n");
 				
-				//SAVE
-				builder.append("\t<insert id=\"save\" ");
-				//暂时中断save, 需要获取自增主键再继续
+				//暂时不写save, 需要获取自增主键再继续
+				
 				StringBuilder builderFindByPk = new StringBuilder();
 				String autoIncrementId = null;
 				//delete需要获取所有主键, 在这完成后到最后拼接
@@ -268,12 +315,11 @@ public class GenerateFiles {
 					String keyType = typeMap.get(key.getPkType());
 					if (keyType.equals("Integer")) {
 						autoIncrementId = keyName;
-						builder.append("useGeneratedKeys=\"true\" keyProperty=\"" + keyName + "\" ");
 					}
 					
 					//用builderFindByPk搞掂根据主键查询的各方法, 出了循环拼回原builder
 					builderFindByPk.append("\t<select id=\"findBy" + toTitleCase(keyName) + "\" "
-							+ "resultType=\"" + packageName + ".entity." + entityName + "\">\n");
+							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
 					builderFindByPk.append("\t\tSELECT *\n");
 					builderFindByPk.append("\t\tFROM " + table.getTableName() + "\n");
 					builderFindByPk.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
@@ -285,10 +331,32 @@ public class GenerateFiles {
 					builderDelete.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
 					builderDelete.append("\t</delete>\n\n");
 				}
-				//这里继续完成save
-				builder.append("parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
+				
+				//resultMap
+				builder.append("\t<resultMap id=\"" + entityName + "Mapping\" type=\""+ packageName + ".entity." + entityName +"\">\n");
+				Map<String, String> resultMap = resultMaps.get(index);
+				if (resultMap.size() > 0) {
+					for (Map.Entry<String, String> entry : resultMaps.get(index).entrySet()) {
+						String columnName = entry.getKey();
+						String fieldName = entry.getValue();
+						
+						if (columnName.equals(autoIncrementId)) {
+							builder.append("\t\t<id column=\""+ columnName +"\" property=\""
+									+ fieldName + "\" javaType=\"java.lang.Integer\" />\n");
+						} else {
+							builder.append("\t\t<result column=\""+ columnName +"\" property=\""
+									+ fieldName + "\" javaType=\"" + fullNameTypeMap.get(table.getTypeByColumnName(columnName)) + "\" />\n");
+						}
+					}
+				}
+				index++;
+				builder.append("\t</resultMap>\n\n");
+				
+				//这里开始完成save
+				builder.append("\t<insert id=\"save\" useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\""
+						+ " parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
 				builder.append("\t\tINSERT INTO " + table.getTableName() + " (\n");
-				//需要遍历所有字段, 再次中断save
+				//需要遍历所有字段, 中断save
 				
 				//UPDATE
 				StringBuilder builderUpdate = new StringBuilder();
@@ -300,16 +368,17 @@ public class GenerateFiles {
 				int i = 1;
 				for (Column c : table.getAllColumns()) {
 					String columnName = c.getColumnName();
+					String fieldName = resultMap.get(columnName) != null ? resultMap.get(columnName) : columnName;
 					//搞掂save的插入字段
 					if (!columnName.equals(autoIncrementId)) {
 						builder.append("\t\t\t" + columnName + ",\n");
-						builderAfterValues.append("\t\t\t#{" + columnName + "},\n");
+						builderAfterValues.append("\t\t\t#{" + fieldName + "},\n");
 					}
 					
 					//搞掂update
 					if (!columnName.equals(autoIncrementId)) {
-						builderUpdate.append("\t\t<if test=\"" + columnName + "!=null and " + columnName + "!=''\">\n");
-						builderUpdate.append("\t\t" + columnName + "=#{" + columnName + "}");
+						builderUpdate.append("\t\t<if test=\"" + fieldName + "!=null and " + fieldName + "!=''\">\n");
+						builderUpdate.append("\t\t" + columnName + "=#{" + fieldName + "}");
 						if (i == table.getAllColumns().size()) {
 							builderUpdate.append("\n");
 						} else {
@@ -342,21 +411,17 @@ public class GenerateFiles {
 				
 				//findByField
 				builder.append("\t<select id=\"" + "findByField" + "\" resultType=\""
-								+ packageName + ".entity." + entityName + "\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
 				builder.append("\t\tSELECT *\n");
 				builder.append("\t\tFROM " + table.getTableName() + "\n");
 				builder.append("\t\t<where>\n");
 				i = 1;
 				for (Column c : table.getAllColumns()) {
 					String columnName = c.getColumnName();
+					String fieldName = resultMap.get(columnName) != null ? resultMap.get(columnName) : columnName;
 					if (!columnName.equals(autoIncrementId)) {
-						builder.append("\t\t\t<if test=\"" + columnName + "!=null and " + columnName + "!=''\">\n");
-						builder.append("\t\t\t" + columnName + "=#{" + columnName);
-						if (i == table.getAllColumns().size()) {
-							builder.append("}\n");
-						} else {
-							builder.append("},\n");
-						}
+						builder.append("\t\t\t<if test=\"" + fieldName + "!=null and " + fieldName + "!=''\">\n");
+						builder.append("\t\t\tAND " + columnName + "=#{" + fieldName + "}\n");
 						builder.append("\t\t\t</if>\n");
 					}
 					i++;
@@ -366,7 +431,7 @@ public class GenerateFiles {
 				
 				//findWithLimit
 				builder.append("\t<select id=\"findWithLimit\" resultType=\""
-								+ packageName + ".entity." + entityName + "\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
 				builder.append("\t\tSELECT *\n");
 				builder.append("\t\tFROM " + table.getTableName() + "\n");
 				builder.append("\t\tORDER BY ${myQuery.orderField} ${myQuery.orderType}\n");
@@ -374,7 +439,7 @@ public class GenerateFiles {
 				
 				//findAll
 				builder.append("\t<select id=\"findAll\" resultType=\""
-								+ packageName + ".entity." + entityName + "\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
 				builder.append("\t\tSELECT *\n");
 				builder.append("\t\tFROM " + table.getTableName() + "\n");
 				builder.append("\t</select>\n\n");
