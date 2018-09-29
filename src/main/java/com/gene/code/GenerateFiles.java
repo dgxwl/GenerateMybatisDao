@@ -466,6 +466,7 @@ public class GenerateFiles {
 			String mapperVarName = null;
 			if (table.getTableName().indexOf('_') == -1) {
 				entityName = toTitleCase(table.getTableName());
+				mapperVarName = table.getTableName() + "Mapper";
 			} else {
 				mapperVarName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1) + "Mapper";
 				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
