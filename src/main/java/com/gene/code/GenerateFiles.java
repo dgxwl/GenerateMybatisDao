@@ -545,7 +545,7 @@ public class GenerateFiles {
 				builder.append("\t\treturn " + mapperVarName + ".findAll();\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\tpublic List<" + entityName + "> findWithLimit(MyQuery myQuery, PageBounds pageBounds) {\n");
+				builder.append("\tpublic List<" + entityName + "> findWithLimit(MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
 					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
 					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
@@ -557,11 +557,9 @@ public class GenerateFiles {
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				}
-				builder.append("\t\tif (pageBounds == null) {\n");
-				builder.append("\t\t\tpageBounds = new PageBounds();\n");
-				builder.append("\t\t\tpageBounds.setLimit(10);\n");
-				builder.append("\t\t\tpageBounds.setPage(1);\n");
-				builder.append("\t\t}\n");
+				builder.append("\t\tpageBounds = new PageBounds();\n");
+				builder.append("\t\tpageBounds.setLimit(myQuery.getLimit());\n");
+				builder.append("\t\tpageBounds.setPage(myQuery.getPage());\n");
 				builder.append("\t\treturn " + mapperVarName + ".findWithLimit(myQuery, pageBounds);\n");
 				builder.append("\t}\n\n");
 				
@@ -590,6 +588,7 @@ public class GenerateFiles {
 			String entityName = null;
 			String serviceVarName = null;
 			if (table.getTableName().indexOf('_') == -1) {
+				serviceVarName = table.getTableName() + "Service";
 				entityName = toTitleCase(table.getTableName());
 			} else {
 				serviceVarName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1) + "Service";
@@ -617,10 +616,10 @@ public class GenerateFiles {
 
 				builder.append("import java.util.List;\n");
 				builder.append("import org.springframework.web.bind.annotation.RestController;\n");
+				builder.append("import org.springframework.web.bind.annotation.RequestBody;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMapping;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMethod;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
-				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
 				builder.append("import "+ packageName +".service." + serviceName + ";\n");
 				builder.append("import "+ packageName +".entity." + entityName + ";\n");
 				builder.append("import " + packageName + ".domain.ResponseResult;\n");
@@ -633,12 +632,12 @@ public class GenerateFiles {
 				builder.append("\t@Autowired\n");
 				builder.append("\tprivate " + serviceName + " " + serviceVarName + ";\n\n");
 				
-				builder.append("\t@RequestMapping(\"/list\")\n");
-				builder.append("\tpublic ResponseListResult<" + entityName + "> list(MyQuery myQuery, PageBounds pageBounds) {\n");
+				builder.append("\t@RequestMapping(value = \"/list\", method = RequestMethod.POST)\n");
+				builder.append("\tpublic ResponseListResult<" + entityName + "> list(@RequestBody MyQuery myQuery) {\n");
 				builder.append("\t\tResponseListResult<" + entityName + "> rr = new ResponseListResult<>();\n");
 				builder.append("\t\ttry {\n");
 				builder.append("\t\t\trr.setResult(1);\n");
-				builder.append("\t\t\trr.setRows(" + serviceVarName + ".findWithLimit(myQuery, pageBounds));\n");
+				builder.append("\t\t\trr.setRows(" + serviceVarName + ".findWithLimit(myQuery));\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
 				builder.append("\t\t\trr.setResult(-100);\n");
