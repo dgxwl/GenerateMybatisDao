@@ -557,7 +557,7 @@ public class GenerateFiles {
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				}
-				builder.append("\t\tpageBounds = new PageBounds();\n");
+				builder.append("\t\tPageBounds pageBounds = new PageBounds();\n");
 				builder.append("\t\tpageBounds.setLimit(myQuery.getLimit());\n");
 				builder.append("\t\tpageBounds.setPage(myQuery.getPage());\n");
 				builder.append("\t\treturn " + mapperVarName + ".findWithLimit(myQuery, pageBounds);\n");
