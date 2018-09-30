@@ -494,11 +494,12 @@ public class GenerateFiles {
 				builder.append("import org.springframework.stereotype.Service;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
 				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
-				builder.append("import "+ packageName +".mapper." + entityName + "Mapper;\n");
-				builder.append("import "+ packageName +".entity." + entityName + ";\n");
+				builder.append("import " + packageName +".mapper." + entityName + "Mapper;\n");
+				builder.append("import " + packageName +".entity." + entityName + ";\n");
+				builder.append("import " + packageName +".util.StringUtils;\n");
 				builder.append("import " + packageName + ".domain.ResponseResult;\n");
 				builder.append("import " + packageName + ".domain.ResponseListResult;\n");
-				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
+				builder.append("import " + packageName +".domain.MyQuery;\n\n");
 				
 				builder.append("@Service\n");
 				builder.append("public class " + serviceName + " {\n\n");
@@ -547,7 +548,7 @@ public class GenerateFiles {
 				
 				builder.append("\tpublic List<" + entityName + "> findWithLimit(MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
-					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
+					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
 					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
