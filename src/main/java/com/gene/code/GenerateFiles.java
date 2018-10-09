@@ -115,6 +115,7 @@ public class GenerateFiles {
 		generateEntity(finalParentPath, packageName);
 		generateXmlMappers(xmlPath, packageName);
 		generateMapper(finalParentPath, packageName);
+		generateIService(finalParentPath, packageName);
 		generateService(finalParentPath, packageName);
 		generateController(finalParentPath, packageName);
 	}
@@ -218,15 +219,14 @@ public class GenerateFiles {
 				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
 			}
 			String mapperName = toTitleCase(entityName + "Mapper");
-			List<PrimaryKey> keys = table.getAllPrimaryKeys();
 			
 			File f = new File(parentPath + "/mapper");
 			if (!f.exists()) {
 				f.mkdirs();
 			}
 			String fileName = parentPath + "/mapper/" + mapperName + ".java";
-			File entity = new File(fileName);
-			entity.createNewFile();
+			File mapper = new File(fileName);
+			mapper.createNewFile();
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
@@ -248,12 +248,14 @@ public class GenerateFiles {
 				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
 				builder.append("\tList<" + entityName + "> " + "findAll();\n");
 				builder.append("\tList<" + entityName + "> " + "findWithLimit(@Param(\"myQuery\") MyQuery myQuery, PageBounds pageBounds);\n");
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
-					builder.append("\t" + entityName + " findBy" + toTitleCase(keyName)
+					String byWhat = toTitleCase(keyName);
+					builder.append("\t" + entityName + " findBy" + byWhat
 									+ "(" + keyType + " " + keyName + ");\n");
-					builder.append("\tInteger " + "deleteBy" + toTitleCase(keyName)
+					builder.append("\tInteger " + "deleteBy" + byWhat
 									+ "(" + keyType + " " + keyName + ");\n");
 				}
 				
@@ -281,15 +283,14 @@ public class GenerateFiles {
 				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
 			}
 			String mapperName = toTitleCase(entityName + "Mapper");
-			List<PrimaryKey> keys = table.getAllPrimaryKeys();
 			
 			File f = new File(parentPath + "/mappers");
 			if (!f.exists()) {
 				f.mkdirs();
 			}
 			String fileName = parentPath + "/mappers/" + mapperName + ".xml";
-			File entity = new File(fileName);
-			entity.createNewFile();
+			File xmlMapper = new File(fileName);
+			xmlMapper.createNewFile();
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
@@ -309,6 +310,7 @@ public class GenerateFiles {
 				String autoIncrementId = null;
 				//delete需要获取所有主键, 在这完成后到最后拼接
 				StringBuilder builderDelete = new StringBuilder();
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					//搞掂save的主键自增
 					String keyName = key.getPkName();
@@ -318,7 +320,8 @@ public class GenerateFiles {
 					}
 					
 					//用builderFindByPk搞掂根据主键查询的各方法, 出了循环拼回原builder
-					builderFindByPk.append("\t<select id=\"findBy" + toTitleCase(keyName) + "\" "
+					String byWhat = toTitleCase(keyName);
+					builderFindByPk.append("\t<select id=\"findBy" + byWhat + "\" "
 							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
 					builderFindByPk.append("\t\tSELECT *\n");
 					builderFindByPk.append("\t\tFROM " + table.getTableName() + "\n");
@@ -326,7 +329,7 @@ public class GenerateFiles {
 					builderFindByPk.append("\t</select>\n\n");
 					
 					//各款delete
-					builderDelete.append("\t<delete id=\"deleteBy" + toTitleCase(keyName) + "\">\n");
+					builderDelete.append("\t<delete id=\"deleteBy" + byWhat + "\">\n");
 					builderDelete.append("\t\tDELETE FROM " + table.getTableName() + "\n");
 					builderDelete.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
 					builderDelete.append("\t</delete>\n\n");
@@ -457,6 +460,68 @@ public class GenerateFiles {
 	}
 	
 	/**
+	 * 生成service接口文件
+	 * @param parentPath
+	 * @param packageName
+	 * @throws IOException
+	 */
+	private static void generateIService(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String entityName = null;
+			if (table.getTableName().indexOf('_') == -1) {
+				entityName = toTitleCase(table.getTableName());
+			} else {
+				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+			}
+			String serviceName = toTitleCase(entityName + "Service");
+			
+			File f = new File(parentPath + "/service");
+			if (!f.exists()) {
+				f.mkdirs();
+			}
+			String fileName = parentPath + "/service/I" + serviceName + ".java";
+			File service = new File(fileName);
+			service.createNewFile();
+			try (
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(
+									new FileOutputStream(fileName), "utf-8"));
+			) {
+				StringBuilder builder = new StringBuilder();
+				builder.append("package " + packageName + ".service;\n\n");
+				builder.append("import java.util.List;\n");
+				builder.append("import " + packageName +".entity." + entityName + ";\n");
+				builder.append("import " + packageName +".domain.MyQuery;\n\n");
+				builder.append("public interface I" + serviceName + " {\n");
+				builder.append("\tInteger save(" + entityName + " entity);\n");
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
+				for (PrimaryKey key : keys) {
+					String keyName = key.getPkName();
+					String keyType = typeMap.get(key.getPkType());
+					String byWhat = toTitleCase(keyName);
+					builder.append("\tInteger deleteBy" + byWhat + "(" + keyType + " " + keyName + ");\n");
+				}
+				for (PrimaryKey key : keys) {
+					String keyName = key.getPkName();
+					String keyType = typeMap.get(key.getPkType());
+					String byWhat = toTitleCase(keyName);
+					builder.append("\t" + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ");\n");
+				}
+				builder.append("\tList<" + entityName + "> findByField(" + entityName + " entity);\n");
+				builder.append("\tList<" + entityName + "> findAll();\n");
+				builder.append("\tList<" + entityName + "> findWithLimit(MyQuery myQuery);\n");
+				builder.append("\tInteger update(" + entityName + " entity);\n");
+				builder.append("}\n");
+				
+				bw.write(builder.toString());
+				bw.flush();
+			} catch (IOException e) {
+				throw new IOException(e);
+			}
+		}
+	}
+	
+	/**
 	 * 生成service文件
 	 * @throws IOException 
 	 */
@@ -473,15 +538,14 @@ public class GenerateFiles {
 			}
 			String serviceName = toTitleCase(entityName + "Service");
 			String mapperName = entityName + "Mapper";
-			List<PrimaryKey> keys = table.getAllPrimaryKeys();
 			
 			File f = new File(parentPath + "/service");
 			if (!f.exists()) {
 				f.mkdirs();
 			}
 			String fileName = parentPath + "/service/" + serviceName + ".java";
-			File entity = new File(fileName);
-			entity.createNewFile();
+			File service = new File(fileName);
+			service.createNewFile();
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
@@ -497,12 +561,10 @@ public class GenerateFiles {
 				builder.append("import " + packageName +".mapper." + entityName + "Mapper;\n");
 				builder.append("import " + packageName +".entity." + entityName + ";\n");
 				builder.append("import " + packageName +".util.StringUtils;\n");
-				builder.append("import " + packageName + ".domain.ResponseResult;\n");
-				builder.append("import " + packageName + ".domain.ResponseListResult;\n");
 				builder.append("import " + packageName +".domain.MyQuery;\n\n");
 				
 				builder.append("@Service\n");
-				builder.append("public class " + serviceName + " {\n\n");
+				builder.append("public class " + serviceName + " implements " + "I" + serviceName + " {\n\n");
 				
 				builder.append("\t@Autowired\n");
 				builder.append("\tprivate " + mapperName + " " + mapperVarName + ";\n\n");
@@ -514,6 +576,7 @@ public class GenerateFiles {
 				StringBuilder builderFindBy = new StringBuilder();
 				String autoIncrementId = null;
 				String otherTypePk = null;
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
@@ -523,16 +586,13 @@ public class GenerateFiles {
 						otherTypePk = keyName;
 					}
 
-					builder.append("\tpublic Integer " + "deleteBy" + toTitleCase(keyName)
-									+ "(" + keyType + " " + keyName + "){ \n");
-					builder.append("\t\treturn " + mapperVarName + ".deleteBy"
-									+ toTitleCase(keyName) + "(" + keyName + ");\n");
+					String byWhat = toTitleCase(keyName);
+					builder.append("\tpublic Integer " + "deleteBy" + byWhat + "(" + keyType + " " + keyName + ") { \n");
+					builder.append("\t\treturn " + mapperVarName + ".deleteBy" + byWhat + "(" + keyName + ");\n");
 					builder.append("\t}\n\n");
 					
-					builderFindBy.append("\tpublic " + entityName + " findBy"
-								+ toTitleCase(keyName) + "(" + keyType + " " + keyName + ") {\n");
-					builderFindBy.append("\t\treturn " + mapperVarName + ".findBy"
-								+ toTitleCase(keyName) + "(" + keyName + ");\n");
+					builderFindBy.append("\tpublic " + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ") {\n");
+					builderFindBy.append("\t\treturn " + mapperVarName + ".findBy" + byWhat + "(" + keyName + ");\n");
 					builderFindBy.append("\t}\n\n");
 				}
 				
@@ -597,15 +657,14 @@ public class GenerateFiles {
 			}
 			String controllerName = toTitleCase(entityName + "Controller");
 			String serviceName = entityName + "Service";
-			List<PrimaryKey> keys = table.getAllPrimaryKeys();
 			
 			File f = new File(parentPath + "/controller");
 			if (!f.exists()) {
 				f.mkdirs();
 			}
 			String fileName = parentPath + "/controller/" + controllerName + ".java";
-			File entity = new File(fileName);
-			entity.createNewFile();
+			File controller = new File(fileName);
+			controller.createNewFile();
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
@@ -617,7 +676,6 @@ public class GenerateFiles {
 
 				builder.append("import java.util.List;\n");
 				builder.append("import org.springframework.web.bind.annotation.RestController;\n");
-				builder.append("import org.springframework.web.bind.annotation.RequestBody;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMapping;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMethod;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
@@ -628,13 +686,14 @@ public class GenerateFiles {
 				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
 				
 				builder.append("@RestController\n");
+				builder.append("@RequestMapping(\"/" + toContentCase(entityName) + "\")\n");
 				builder.append("public class " + controllerName + " {\n\n");
 				
 				builder.append("\t@Autowired\n");
 				builder.append("\tprivate " + serviceName + " " + serviceVarName + ";\n\n");
 				
-				builder.append("\t@RequestMapping(value = \"/list\", method = RequestMethod.POST)\n");
-				builder.append("\tpublic ResponseListResult<" + entityName + "> list(@RequestBody MyQuery myQuery) {\n");
+				builder.append("\t@RequestMapping(\"/list\"\n");
+				builder.append("\tpublic ResponseListResult<" + entityName + "> list(MyQuery myQuery) {\n");
 				builder.append("\t\tResponseListResult<" + entityName + "> rr = new ResponseListResult<>();\n");
 				builder.append("\t\ttry {\n");
 				builder.append("\t\t\trr.setResult(1);\n");
@@ -677,7 +736,7 @@ public class GenerateFiles {
 				builder.append("\t\t\t\trr.setMessage(\"修改成功\");\n");
 				builder.append("\t\t\t} else {\n");
 				builder.append("\t\t\t\trr.setResult(-100);\n");
-				builder.append("\t\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
 				builder.append("\t\t\t}\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
@@ -690,6 +749,7 @@ public class GenerateFiles {
 				builder.append("\t@RequestMapping(value = \"/delete\", method = RequestMethod.POST)\n");
 				
 				String autoIncrementId = null;
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
@@ -708,7 +768,7 @@ public class GenerateFiles {
 				builder.append("\t\t\t\trr.setMessage(\"删除成功\");\n");
 				builder.append("\t\t\t} else {\n");
 				builder.append("\t\t\t\trr.setResult(-100);\n");
-				builder.append("\t\t\t\trr.setMessage(\"服务器异常\");\n");
+				builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
 				builder.append("\t\t\t}\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
@@ -736,6 +796,14 @@ public class GenerateFiles {
 		char[] chs = str.toCharArray();
 		if (chs[0] >= 97 && chs[0] <= 122) {
 			chs[0] -= 32;
+		}
+		return String.valueOf(chs);
+	}
+	
+	private static String toContentCase(String str) {
+		char[] chs = str.toCharArray();
+		if (chs[0] >= 65 && chs[0] <= 90) {
+			chs[0] += 32;
 		}
 		return String.valueOf(chs);
 	}
