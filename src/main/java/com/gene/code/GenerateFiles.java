@@ -6,6 +6,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,7 @@ import java.util.Properties;
 public class GenerateFiles {
 	
 	private static List<Table> tables = TableHandler.getTables();
+	private static List<String> entityNames = TableHandler.getEntityNames();
 	//映射SQL数据类型和Java数据类型
 	private static Map<String, String> typeMap = new HashMap<>();
 	//映射SQL数据类型和Java数据类型(resultMap用到)
@@ -106,6 +108,9 @@ public class GenerateFiles {
 			} while (pathFile.exists());
 		}
 		
+		//检查表名是否有重复, 记下重复的名字
+		
+		
 		String xmlPath = builder.toString();
 		
 		//拼接包名路径
@@ -127,14 +132,26 @@ public class GenerateFiles {
 	 */
 	private static void generateEntity(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
+			String tableName = table.getTableName();
 			Map<String, String> resultMap = new HashMap<>();
 			resultMaps.add(resultMap);
 			
 			String entityName = null;
-			if (table.getTableName().indexOf('_') == -1) {
-				entityName = toTitleCase(table.getTableName());
+			String lastPart;
+			if (tableName.indexOf('_') != -1) {
+				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+				if (Collections.frequency(entityNames, lastPart) > 1) {
+					String[] data = tableName.split("_");
+					if (data.length > 2) {
+						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+					} else {
+						entityName = toTitleCase(data[data.length - 1]);
+					}
+				} else {
+					entityName = toTitleCase(lastPart);
+				}
 			} else {
-				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+				entityName = toTitleCase(tableName);
 			}
 			
 			List<Column> fields = table.getAllColumns();
@@ -212,13 +229,25 @@ public class GenerateFiles {
 	 */
 	private static void generateMapper(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
+			String tableName = table.getTableName();
 			String entityName = null;
-			if (table.getTableName().indexOf('_') == -1) {
-				entityName = toTitleCase(table.getTableName());
+			String lastPart;
+			if (tableName.indexOf('_') != -1) {
+				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+				if (Collections.frequency(entityNames, lastPart) > 1) {
+					String[] data = tableName.split("_");
+					if (data.length > 2) {
+						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+					} else {
+						entityName = toTitleCase(data[data.length - 1]);
+					}
+				} else {
+					entityName = toTitleCase(lastPart);
+				}
 			} else {
-				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+				entityName = toTitleCase(tableName);
 			}
-			String mapperName = toTitleCase(entityName + "Mapper");
+			String mapperName = entityName + "Mapper";
 			
 			File f = new File(parentPath + "/mapper");
 			if (!f.exists()) {
@@ -247,7 +276,7 @@ public class GenerateFiles {
 				builder.append("\tInteger " + "update(" + entityName + " entity);\n");
 				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
 				builder.append("\tList<" + entityName + "> " + "findAll();\n");
-				builder.append("\tList<" + entityName + "> " + "findWithLimit(@Param(\"myQuery\") MyQuery myQuery, PageBounds pageBounds);\n");
+				builder.append("\tList<" + entityName + "> " + "findByCondition(@Param(\"myQuery\") MyQuery myQuery, PageBounds pageBounds);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
@@ -276,13 +305,26 @@ public class GenerateFiles {
 	private static void generateXmlMappers(String parentPath, String packageName) throws IOException {
 		int index = 0;
 		for (Table table : tables) {
+			String tableName = table.getTableName();
 			String entityName = null;
-			if (table.getTableName().indexOf('_') == -1) {
-				entityName = toTitleCase(table.getTableName());
+			String lastPart;
+			if (tableName.indexOf('_') != -1) {
+				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+				if (Collections.frequency(entityNames, lastPart) > 1) {
+					String[] data = tableName.split("_");
+					if (data.length > 2) {
+						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+					} else {
+						entityName = toTitleCase(data[data.length - 1]);
+					}
+				} else {
+					entityName = toTitleCase(lastPart);
+				}
 			} else {
-				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+				entityName = toTitleCase(tableName);
 			}
-			String mapperName = toTitleCase(entityName + "Mapper");
+			String mapperName = entityName + "Mapper";
+			String resultMapName = toContentCase(entityName);
 			
 			File f = new File(parentPath + "/mappers");
 			if (!f.exists()) {
@@ -322,21 +364,21 @@ public class GenerateFiles {
 					//用builderFindByPk搞掂根据主键查询的各方法, 出了循环拼回原builder
 					String byWhat = toTitleCase(keyName);
 					builderFindByPk.append("\t<select id=\"findBy" + byWhat + "\" "
-							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
+							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
 					builderFindByPk.append("\t\tSELECT *\n");
-					builderFindByPk.append("\t\tFROM " + table.getTableName() + "\n");
+					builderFindByPk.append("\t\tFROM " + tableName + "\n");
 					builderFindByPk.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
 					builderFindByPk.append("\t</select>\n\n");
 					
 					//各款delete
 					builderDelete.append("\t<delete id=\"deleteBy" + byWhat + "\">\n");
-					builderDelete.append("\t\tDELETE FROM " + table.getTableName() + "\n");
+					builderDelete.append("\t\tDELETE FROM " + tableName + "\n");
 					builderDelete.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
 					builderDelete.append("\t</delete>\n\n");
 				}
 				
 				//resultMap
-				builder.append("\t<resultMap id=\"" + entityName + "Mapping\" type=\""+ packageName + ".entity." + entityName +"\">\n");
+				builder.append("\t<resultMap id=\"" + resultMapName + "Mapping\" type=\""+ packageName + ".entity." + entityName +"\">\n");
 				Map<String, String> resultMap = resultMaps.get(index);
 				if (resultMap.size() > 0) {
 					for (Map.Entry<String, String> entry : resultMaps.get(index).entrySet()) {
@@ -358,13 +400,13 @@ public class GenerateFiles {
 				//这里开始完成save
 				builder.append("\t<insert id=\"save\" useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\""
 						+ " parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
-				builder.append("\t\tINSERT INTO " + table.getTableName() + " (\n");
+				builder.append("\t\tINSERT INTO " + tableName + " (\n");
 				//需要遍历所有字段, 中断save
 				
 				//UPDATE
 				StringBuilder builderUpdate = new StringBuilder();
 				builderUpdate.append("\t<update id=\"update\" parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
-				builderUpdate.append("\t\tUPDATE " + table.getTableName() + "\n");
+				builderUpdate.append("\t\tUPDATE " + tableName + "\n");
 				builderUpdate.append("\t\t<set>\n");
 				
 				StringBuilder builderAfterValues = new StringBuilder();  //保存 ) VALUES ( 后面的插入字段
@@ -414,9 +456,9 @@ public class GenerateFiles {
 				
 				//findByField
 				builder.append("\t<select id=\"" + "findByField" + "\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
 				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + table.getTableName() + "\n");
+				builder.append("\t\tFROM " + tableName + "\n");
 				builder.append("\t\t<where>\n");
 				i = 1;
 				for (Column c : table.getAllColumns()) {
@@ -432,19 +474,19 @@ public class GenerateFiles {
 				builder.append("\t\t</where>\n");
 				builder.append("\t</select>\n\n");
 				
-				//findWithLimit
-				builder.append("\t<select id=\"findWithLimit\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
+				//findByCondition
+				builder.append("\t<select id=\"findByCondition\" resultType=\""
+								+ packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
 				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + table.getTableName() + "\n");
+				builder.append("\t\tFROM " + tableName + "\n");
 				builder.append("\t\tORDER BY ${myQuery.orderField} ${myQuery.orderType}\n");
 				builder.append("\t</select>\n\n");
 				
 				//findAll
 				builder.append("\t<select id=\"findAll\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"" + entityName + "Mapping\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
 				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + table.getTableName() + "\n");
+				builder.append("\t\tFROM " + tableName + "\n");
 				builder.append("\t</select>\n\n");
 				
 				//delete
@@ -467,13 +509,25 @@ public class GenerateFiles {
 	 */
 	private static void generateIService(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
+			String tableName = table.getTableName();
 			String entityName = null;
-			if (table.getTableName().indexOf('_') == -1) {
-				entityName = toTitleCase(table.getTableName());
+			String lastPart;
+			if (tableName.indexOf('_') != -1) {
+				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+				if (Collections.frequency(entityNames, lastPart) > 1) {
+					String[] data = tableName.split("_");
+					if (data.length > 2) {
+						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+					} else {
+						entityName = toTitleCase(data[data.length - 1]);
+					}
+				} else {
+					entityName = toTitleCase(lastPart);
+				}
 			} else {
-				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+				entityName = toTitleCase(tableName);
 			}
-			String serviceName = toTitleCase(entityName + "Service");
+			String serviceName = entityName + "Service";
 			
 			File f = new File(parentPath + "/service");
 			if (!f.exists()) {
@@ -509,7 +563,7 @@ public class GenerateFiles {
 				}
 				builder.append("\tList<" + entityName + "> findByField(" + entityName + " entity);\n");
 				builder.append("\tList<" + entityName + "> findAll();\n");
-				builder.append("\tList<" + entityName + "> findWithLimit(MyQuery myQuery);\n");
+				builder.append("\tList<" + entityName + "> findByCondition(MyQuery myQuery);\n");
 				builder.append("\tInteger update(" + entityName + " entity);\n");
 				builder.append("}\n");
 				
@@ -527,17 +581,27 @@ public class GenerateFiles {
 	 */
 	private static void generateService(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
+			String tableName = table.getTableName();
 			String entityName = null;
-			String mapperVarName = null;
-			if (table.getTableName().indexOf('_') == -1) {
-				entityName = toTitleCase(table.getTableName());
-				mapperVarName = table.getTableName() + "Mapper";
+			String lastPart;
+			if (tableName.indexOf('_') != -1) {
+				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+				if (Collections.frequency(entityNames, lastPart) > 1) {
+					String[] data = tableName.split("_");
+					if (data.length > 2) {
+						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+					} else {
+						entityName = toTitleCase(data[data.length - 1]);
+					}
+				} else {
+					entityName = toTitleCase(lastPart);
+				}
 			} else {
-				mapperVarName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1) + "Mapper";
-				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+				entityName = toTitleCase(tableName);
 			}
-			String serviceName = toTitleCase(entityName + "Service");
+			String serviceName = entityName + "Service";
 			String mapperName = entityName + "Mapper";
+			String mapperVarName = toContentCase(mapperName);
 			
 			File f = new File(parentPath + "/service");
 			if (!f.exists()) {
@@ -606,7 +670,7 @@ public class GenerateFiles {
 				builder.append("\t\treturn " + mapperVarName + ".findAll();\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\tpublic List<" + entityName + "> findWithLimit(MyQuery myQuery) {\n");
+				builder.append("\tpublic List<" + entityName + "> findByCondition(MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
 					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
 					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
@@ -621,7 +685,7 @@ public class GenerateFiles {
 				builder.append("\t\tPageBounds pageBounds = new PageBounds();\n");
 				builder.append("\t\tpageBounds.setLimit(myQuery.getLimit());\n");
 				builder.append("\t\tpageBounds.setPage(myQuery.getPage());\n");
-				builder.append("\t\treturn " + mapperVarName + ".findWithLimit(myQuery, pageBounds);\n");
+				builder.append("\t\treturn " + mapperVarName + ".findByCondition(myQuery, pageBounds);\n");
 				builder.append("\t}\n\n");
 				
 				builder.append("\tpublic Integer update(" + entityName + " entity) {\n");
@@ -646,17 +710,27 @@ public class GenerateFiles {
 	 */
 	private static void generateController(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
+			String tableName = table.getTableName();
 			String entityName = null;
-			String serviceVarName = null;
-			if (table.getTableName().indexOf('_') == -1) {
-				serviceVarName = table.getTableName() + "Service";
-				entityName = toTitleCase(table.getTableName());
+			String lastPart;
+			if (tableName.indexOf('_') != -1) {
+				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+				if (Collections.frequency(entityNames, lastPart) > 1) {
+					String[] data = tableName.split("_");
+					if (data.length > 2) {
+						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+					} else {
+						entityName = toTitleCase(data[data.length - 1]);
+					}
+				} else {
+					entityName = toTitleCase(lastPart);
+				}
 			} else {
-				serviceVarName = table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1) + "Service";
-				entityName = toTitleCase(table.getTableName().substring(table.getTableName().lastIndexOf('_') + 1));
+				entityName = toTitleCase(tableName);
 			}
-			String controllerName = toTitleCase(entityName + "Controller");
+			String controllerName = entityName + "Controller";
 			String serviceName = entityName + "Service";
+			String serviceVarName = toContentCase(serviceName);
 			
 			File f = new File(parentPath + "/controller");
 			if (!f.exists()) {
@@ -686,18 +760,18 @@ public class GenerateFiles {
 				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
 				
 				builder.append("@RestController\n");
-				builder.append("@RequestMapping(\"/" + toContentCase(entityName) + "\")\n");
+				builder.append("@RequestMapping(\"/" + entityName.toLowerCase() + "\")\n");
 				builder.append("public class " + controllerName + " {\n\n");
 				
 				builder.append("\t@Autowired\n");
 				builder.append("\tprivate " + serviceName + " " + serviceVarName + ";\n\n");
 				
-				builder.append("\t@RequestMapping(\"/list\"\n");
+				builder.append("\t@RequestMapping(\"/list\")\n");
 				builder.append("\tpublic ResponseListResult<" + entityName + "> list(MyQuery myQuery) {\n");
 				builder.append("\t\tResponseListResult<" + entityName + "> rr = new ResponseListResult<>();\n");
 				builder.append("\t\ttry {\n");
 				builder.append("\t\t\trr.setResult(1);\n");
-				builder.append("\t\t\trr.setRows(" + serviceVarName + ".findWithLimit(myQuery));\n");
+				builder.append("\t\t\trr.setRows(" + serviceVarName + ".findByCondition(myQuery));\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
 				builder.append("\t\t\trr.setResult(-100);\n");
@@ -756,7 +830,6 @@ public class GenerateFiles {
 					if (keyType.equals("Integer")) {
 						autoIncrementId = keyName;
 					}
-					
 				}
 				builder.append("\tpublic ResponseResult delete(Integer " + autoIncrementId + ") {\n");
 				builder.append("\t\tResponseResult rr = new ResponseResult();\n");

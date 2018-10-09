@@ -14,6 +14,7 @@ import java.util.List;
 public class TableHandler {
 	
 	private static List<Table> tables = new ArrayList<>();
+	private static List<String> entityNames = new ArrayList<>();  //记下含有下划线的表名转化后的实体名
 	
 	static {
 		Connection conn = null;
@@ -31,6 +32,10 @@ public class TableHandler {
 				//获取表名
 				String tableName = resultSet.getString("TABLE_NAME");
 				table.setTableName(tableName);
+				int lastIndex = tableName.lastIndexOf('_');
+				if (lastIndex != -1) {
+					entityNames.add(tableName.substring(lastIndex + 1));
+				}
 				
 				//获得该表字段的元数据
 				ResultSet rs = metaData.getColumns(null, schema, tableName, "%");
@@ -84,5 +89,13 @@ public class TableHandler {
 	 */
 	public static List<Table> getTables() {
 		return tables;
+	}
+	
+	/**
+	 * 获得处理好的所有带下划线的表名的最后一段
+	 * @return
+	 */
+	public static List<String> getEntityNames() {
+		return entityNames;
 	}
 }
