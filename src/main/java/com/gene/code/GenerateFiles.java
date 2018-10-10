@@ -267,6 +267,7 @@ public class GenerateFiles {
 				builder.append("import java.util.List;\n");
 				builder.append("import org.apache.ibatis.annotations.Param;\n");
 				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageList;\n");
 				builder.append("import "+ packageName +".entity." + entityName + ";\n");
 				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
 				
@@ -274,9 +275,9 @@ public class GenerateFiles {
 				
 				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
 				builder.append("\tInteger " + "update(" + entityName + " entity);\n");
-				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
+				builder.append("\tPageList<" + entityName + "> " + "findByField("+ entityName +" entity, PageBounds pageBounds);\n");
 				builder.append("\tList<" + entityName + "> " + "findAll();\n");
-				builder.append("\tList<" + entityName + "> " + "findByCondition(@Param(\"myQuery\") MyQuery myQuery, PageBounds pageBounds);\n");
+				builder.append("\tPageList<" + entityName + "> " + "findByCondition(@Param(\"myQuery\") MyQuery myQuery, PageBounds pageBounds);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
@@ -324,7 +325,6 @@ public class GenerateFiles {
 				entityName = toTitleCase(tableName);
 			}
 			String mapperName = entityName + "Mapper";
-			String resultMapName = toContentCase(entityName);
 			
 			File f = new File(parentPath + "/mappers");
 			if (!f.exists()) {
@@ -364,7 +364,7 @@ public class GenerateFiles {
 					//用builderFindByPk搞掂根据主键查询的各方法, 出了循环拼回原builder
 					String byWhat = toTitleCase(keyName);
 					builderFindByPk.append("\t<select id=\"findBy" + byWhat + "\" "
-							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
+							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
 					builderFindByPk.append("\t\tSELECT *\n");
 					builderFindByPk.append("\t\tFROM " + tableName + "\n");
 					builderFindByPk.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
@@ -378,7 +378,7 @@ public class GenerateFiles {
 				}
 				
 				//resultMap
-				builder.append("\t<resultMap id=\"" + resultMapName + "Mapping\" type=\""+ packageName + ".entity." + entityName +"\">\n");
+				builder.append("\t<resultMap id=\"mapping\" type=\""+ packageName + ".entity." + entityName +"\">\n");
 				Map<String, String> resultMap = resultMaps.get(index);
 				if (resultMap.size() > 0) {
 					for (Map.Entry<String, String> entry : resultMaps.get(index).entrySet()) {
@@ -456,7 +456,7 @@ public class GenerateFiles {
 				
 				//findByField
 				builder.append("\t<select id=\"" + "findByField" + "\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
 				builder.append("\t\tSELECT *\n");
 				builder.append("\t\tFROM " + tableName + "\n");
 				builder.append("\t\t<where>\n");
@@ -476,7 +476,7 @@ public class GenerateFiles {
 				
 				//findByCondition
 				builder.append("\t<select id=\"findByCondition\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
 				builder.append("\t\tSELECT *\n");
 				builder.append("\t\tFROM " + tableName + "\n");
 				builder.append("\t\tORDER BY ${myQuery.orderField} ${myQuery.orderType}\n");
@@ -484,7 +484,7 @@ public class GenerateFiles {
 				
 				//findAll
 				builder.append("\t<select id=\"findAll\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"" + resultMapName + "Mapping\">\n");
+								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
 				builder.append("\t\tSELECT *\n");
 				builder.append("\t\tFROM " + tableName + "\n");
 				builder.append("\t</select>\n\n");
@@ -545,7 +545,8 @@ public class GenerateFiles {
 				builder.append("package " + packageName + ".service;\n\n");
 				builder.append("import java.util.List;\n");
 				builder.append("import " + packageName +".entity." + entityName + ";\n");
-				builder.append("import " + packageName +".domain.MyQuery;\n\n");
+				builder.append("import " + packageName +".domain.MyQuery;\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageList;\n\n");
 				builder.append("public interface I" + serviceName + " {\n");
 				builder.append("\tInteger save(" + entityName + " entity);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
@@ -561,9 +562,9 @@ public class GenerateFiles {
 					String byWhat = toTitleCase(keyName);
 					builder.append("\t" + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ");\n");
 				}
-				builder.append("\tList<" + entityName + "> findByField(" + entityName + " entity);\n");
+				builder.append("\tPageList<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery);\n");
 				builder.append("\tList<" + entityName + "> findAll();\n");
-				builder.append("\tList<" + entityName + "> findByCondition(MyQuery myQuery);\n");
+				builder.append("\tPageList<" + entityName + "> findByCondition(MyQuery myQuery);\n");
 				builder.append("\tInteger update(" + entityName + " entity);\n");
 				builder.append("}\n");
 				
@@ -622,6 +623,7 @@ public class GenerateFiles {
 				builder.append("import org.springframework.stereotype.Service;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
 				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageBounds;\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageList;\n");
 				builder.append("import " + packageName +".mapper." + entityName + "Mapper;\n");
 				builder.append("import " + packageName +".entity." + entityName + ";\n");
 				builder.append("import " + packageName +".util.StringUtils;\n");
@@ -662,15 +664,29 @@ public class GenerateFiles {
 				
 				builder.append(builderFindBy);
 				
-				builder.append("\tpublic List<" + entityName + "> findByField(" + entityName + " entity) {\n");
-				builder.append("\t\treturn " + mapperVarName + ".findByField(entity);\n");
+				builder.append("\tpublic PageList<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery) {\n");
+				if (autoIncrementId != null) {
+					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
+					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
+					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
+					builder.append("\t\t}\n");
+				} else if (otherTypePk != null) {
+					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
+					builder.append("\t\t\tmyQuery.setOrderField(" + otherTypePk + ");\n");
+					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
+					builder.append("\t\t}\n");
+				}
+				builder.append("\t\tPageBounds pageBounds = new PageBounds();\n");
+				builder.append("\t\tpageBounds.setLimit(myQuery.getLimit());\n");
+				builder.append("\t\tpageBounds.setPage(myQuery.getPage());\n");
+				builder.append("\t\treturn " + mapperVarName + ".findByField(entity, pageBounds);\n");
 				builder.append("\t}\n\n");
 
 				builder.append("\tpublic List<" + entityName + "> findAll() {\n");
 				builder.append("\t\treturn " + mapperVarName + ".findAll();\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\tpublic List<" + entityName + "> findByCondition(MyQuery myQuery) {\n");
+				builder.append("\tpublic PageList<" + entityName + "> findByCondition(MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
 					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
 					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
@@ -755,8 +771,8 @@ public class GenerateFiles {
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
 				builder.append("import "+ packageName +".service." + serviceName + ";\n");
 				builder.append("import "+ packageName +".entity." + entityName + ";\n");
+				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageList;\n");
 				builder.append("import " + packageName + ".domain.ResponseResult;\n");
-				builder.append("import " + packageName + ".domain.ResponseListResult;\n");
 				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
 				
 				builder.append("@RestController\n");
@@ -767,11 +783,13 @@ public class GenerateFiles {
 				builder.append("\tprivate " + serviceName + " " + serviceVarName + ";\n\n");
 				
 				builder.append("\t@RequestMapping(\"/list\")\n");
-				builder.append("\tpublic ResponseListResult<" + entityName + "> list(MyQuery myQuery) {\n");
-				builder.append("\t\tResponseListResult<" + entityName + "> rr = new ResponseListResult<>();\n");
+				builder.append("\tpublic ResponseResult list(MyQuery myQuery) {\n");
+				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 				builder.append("\t\ttry {\n");
+				builder.append("\t\tPageList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
 				builder.append("\t\t\trr.setResult(1);\n");
-				builder.append("\t\t\trr.setRows(" + serviceVarName + ".findByCondition(myQuery));\n");
+				builder.append("\t\t\trr.setData(list);\n");
+				builder.append("\t\t\trr.setTotal(list.getPaginator().getTotalCount());\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
 				builder.append("\t\t\trr.setResult(-100);\n");
