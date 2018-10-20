@@ -70,7 +70,7 @@ public class GenerateFiles {
 		fullNameTypeMap.put("FLOAT", "java.lang.Float");
 		fullNameTypeMap.put("DECIMAL", "java.math.BigDecimal");
 		fullNameTypeMap.put("NUMERIC", "java.math.BigDecimal");
-		fullNameTypeMap.put("DATE", "java.math.Date");
+		fullNameTypeMap.put("DATE", "java.util.Date");
 		fullNameTypeMap.put("TIME", "java.util.Date");
 		fullNameTypeMap.put("YEAR", "java.util.Date");
 		fullNameTypeMap.put("DATETIME", "java.util.Date");
@@ -545,7 +545,7 @@ public class GenerateFiles {
 				builder.append("package " + packageName + ".service;\n\n");
 				builder.append("import java.util.List;\n");
 				builder.append("import " + packageName +".entity." + entityName + ";\n");
-				builder.append("import " + packageName +".domain.MyQuery;\n");
+				builder.append("import " + packageName +".domain.MyQuery;\n\n");
 				builder.append("public interface I" + serviceName + " {\n");
 				builder.append("\tInteger save(" + entityName + " entity);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
