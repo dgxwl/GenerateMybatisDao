@@ -769,7 +769,7 @@ public class GenerateFiles {
 				builder.append("import org.springframework.web.bind.annotation.RequestMapping;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMethod;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
-				builder.append("import "+ packageName +".service." + serviceName + ";\n");
+				builder.append("import "+ packageName +".service.I" + serviceName + ";\n");
 				builder.append("import "+ packageName +".entity." + entityName + ";\n");
 				builder.append("import com.github.miemiedev.mybatis.paginator.domain.PageList;\n");
 				builder.append("import " + packageName + ".domain.ResponseResult;\n");
@@ -780,7 +780,7 @@ public class GenerateFiles {
 				builder.append("public class " + controllerName + " {\n\n");
 				
 				builder.append("\t@Autowired\n");
-				builder.append("\tprivate " + serviceName + " " + serviceVarName + ";\n\n");
+				builder.append("\tprivate I" + serviceName + " " + serviceVarName + ";\n\n");
 				
 				builder.append("\t@RequestMapping(\"/list\")\n");
 				builder.append("\tpublic ResponseResult list(MyQuery myQuery) {\n");
