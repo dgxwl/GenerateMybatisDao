@@ -269,7 +269,7 @@ public class GenerateFiles {
 				builder.append("public interface " + mapperName + " {\n\n");
 				
 				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
-				builder.append("\tInteger " + "update(" + entityName + " entity);\n");
+				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger " + "update(" + entityName + " entity);\n" : "");
 				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
 				builder.append("\tList<" + entityName + "> " + "findAll();\n");
 				builder.append("\tList<" + entityName + "> " + "findByCondition(@Param(\"myQuery\") MyQuery myQuery);\n");
@@ -393,16 +393,19 @@ public class GenerateFiles {
 				builder.append("\t</resultMap>\n\n");
 				
 				//这里开始完成save
-				builder.append("\t<insert id=\"save\" useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\""
-						+ " parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
+				builder.append("\t<insert id=\"save\""
+				+ (autoIncrementId != null ? "useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\"" : "")
+				+  " parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
 				builder.append("\t\tINSERT INTO " + tableName + " (\n");
 				//需要遍历所有字段, 中断save
 				
 				//UPDATE
 				StringBuilder builderUpdate = new StringBuilder();
-				builderUpdate.append("\t<update id=\"update\" parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
-				builderUpdate.append("\t\tUPDATE " + tableName + "\n");
-				builderUpdate.append("\t\t<set>\n");
+				if (autoIncrementId != null) {
+					builderUpdate.append("\t<update id=\"update\" parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
+					builderUpdate.append("\t\tUPDATE " + tableName + "\n");
+					builderUpdate.append("\t\t<set>\n");
+				}
 				
 				StringBuilder builderAfterValues = new StringBuilder();  //保存 ) VALUES ( 后面的插入字段
 				int i = 1;
@@ -416,7 +419,7 @@ public class GenerateFiles {
 					}
 					
 					//搞掂update
-					if (!columnName.equals(autoIncrementId)) {
+					if (autoIncrementId != null && !columnName.equals(autoIncrementId)) {
 						builderUpdate.append("\t\t<if test=\"" + fieldName + "!=null and " + fieldName + "!=''\">\n");
 						builderUpdate.append("\t\t" + columnName + "=#{" + fieldName + "}");
 						if (i == table.getAllColumns().size()) {
@@ -428,9 +431,12 @@ public class GenerateFiles {
 					}
 					i++;
 				}
-				builderUpdate.append("\t\t</set>\n");
-				builderUpdate.append("\t\tWHERE " + autoIncrementId + "=#{" + autoIncrementId + "}\n");
-				builderUpdate.append("\t</update>\n\n");
+				if (autoIncrementId != null) {
+					builderUpdate.append("\t\t</set>\n");
+					builderUpdate.append("\t\tWHERE " + autoIncrementId + "=#{" + autoIncrementId + "}\n");
+					builderUpdate.append("\t</update>\n\n");
+				}
+				
 				//删去最后一轮循环多出的",\n"
 				builder.deleteCharAt(builder.length() - 1);
 				builder.deleteCharAt(builder.length() - 1);
@@ -564,7 +570,7 @@ public class GenerateFiles {
 				builder.append("\tList<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery);\n");
 				builder.append("\tList<" + entityName + "> findAll();\n");
 				builder.append("\tList<" + entityName + "> findByCondition(MyQuery myQuery);\n");
-				builder.append("\tInteger update(" + entityName + " entity);\n");
+				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger update(" + entityName + " entity);\n" : "");
 				builder.append("}\n");
 				
 				bw.write(builder.toString());
@@ -698,9 +704,11 @@ public class GenerateFiles {
 				builder.append("\t\treturn " + mapperVarName + ".findByCondition(myQuery);\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\tpublic Integer update(" + entityName + " entity) {\n");
-				builder.append("\t\treturn " + mapperVarName + ".update(entity);\n");
-				builder.append("\t}\n\n");
+				if (autoIncrementId != null) {
+					builder.append("\tpublic Integer update(" + entityName + " entity) {\n");
+					builder.append("\t\treturn " + mapperVarName + ".update(entity);\n");
+					builder.append("\t}\n\n");
+				}
 				
 				builder.append("}");
 				
@@ -829,28 +837,6 @@ public class GenerateFiles {
 				builder.append("\t\treturn rr;\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
-				builder.append("\tpublic ResponseResult update(" + entityName + " entity) {\n");
-				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
-				builder.append("\t\ttry {\n");
-				builder.append("\t\t\tInteger result = " + serviceVarName + ".update(entity);\n");
-				builder.append("\t\t\tif (result > 0) {\n");
-				builder.append("\t\t\t\trr.setResult(1);\n");
-				builder.append("\t\t\t\trr.setMessage(\"修改成功\");\n");
-				builder.append("\t\t\t} else {\n");
-				builder.append("\t\t\t\trr.setResult(-100);\n");
-				builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
-				builder.append("\t\t\t}\n");
-				builder.append("\t\t} catch (Exception e) {\n");
-				builder.append("\t\t\te.printStackTrace();\n");
-				builder.append("\t\t\trr.setResult(-100);\n");
-				builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
-				builder.append("\t\t}\n");
-				builder.append("\t\treturn rr;\n");
-				builder.append("\t}\n\n");
-				
-				builder.append("\t@RequestMapping(value = \"/delete\", method = RequestMethod.POST)\n");
-				
 				String autoIncrementId = null;
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
@@ -860,25 +846,51 @@ public class GenerateFiles {
 						autoIncrementId = keyName;
 					}
 				}
-				builder.append("\tpublic ResponseResult delete(Integer " + autoIncrementId + ") {\n");
-				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
-				builder.append("\t\ttry {\n");
-				builder.append("\t\t\tInteger result = " + serviceVarName + ".deleteBy"
-								+ toTitleCase(autoIncrementId) + "(" + autoIncrementId + ");\n");
-				builder.append("\t\t\tif (result > 0) {\n");
-				builder.append("\t\t\t\trr.setResult(1);\n");
-				builder.append("\t\t\t\trr.setMessage(\"删除成功\");\n");
-				builder.append("\t\t\t} else {\n");
-				builder.append("\t\t\t\trr.setResult(-100);\n");
-				builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
-				builder.append("\t\t\t}\n");
-				builder.append("\t\t} catch (Exception e) {\n");
-				builder.append("\t\t\te.printStackTrace();\n");
-				builder.append("\t\t\trr.setResult(-100);\n");
-				builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
-				builder.append("\t\t}\n");
-				builder.append("\t\treturn rr;\n");
-				builder.append("\t}\n\n");
+				
+				if (autoIncrementId != null) {
+					builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
+					builder.append("\tpublic ResponseResult update(" + entityName + " entity) {\n");
+					builder.append("\t\tResponseResult rr = new ResponseResult();\n");
+					builder.append("\t\ttry {\n");
+					builder.append("\t\t\tInteger result = " + serviceVarName + ".update(entity);\n");
+					builder.append("\t\t\tif (result > 0) {\n");
+					builder.append("\t\t\t\trr.setResult(1);\n");
+					builder.append("\t\t\t\trr.setMessage(\"修改成功\");\n");
+					builder.append("\t\t\t} else {\n");
+					builder.append("\t\t\t\trr.setResult(-100);\n");
+					builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
+					builder.append("\t\t\t}\n");
+					builder.append("\t\t} catch (Exception e) {\n");
+					builder.append("\t\t\te.printStackTrace();\n");
+					builder.append("\t\t\trr.setResult(-100);\n");
+					builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+					builder.append("\t\t}\n");
+					builder.append("\t\treturn rr;\n");
+					builder.append("\t}\n\n");
+				}
+				
+				if (autoIncrementId != null) {
+					builder.append("\t@RequestMapping(value = \"/delete\", method = RequestMethod.POST)\n");
+					builder.append("\tpublic ResponseResult delete(Integer " + autoIncrementId + ") {\n");
+					builder.append("\t\tResponseResult rr = new ResponseResult();\n");
+					builder.append("\t\ttry {\n");
+					builder.append("\t\t\tInteger result = " + serviceVarName + ".deleteBy"
+									+ toTitleCase(autoIncrementId) + "(" + autoIncrementId + ");\n");
+					builder.append("\t\t\tif (result > 0) {\n");
+					builder.append("\t\t\t\trr.setResult(1);\n");
+					builder.append("\t\t\t\trr.setMessage(\"删除成功\");\n");
+					builder.append("\t\t\t} else {\n");
+					builder.append("\t\t\t\trr.setResult(-100);\n");
+					builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
+					builder.append("\t\t\t}\n");
+					builder.append("\t\t} catch (Exception e) {\n");
+					builder.append("\t\t\te.printStackTrace();\n");
+					builder.append("\t\t\trr.setResult(-100);\n");
+					builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+					builder.append("\t\t}\n");
+					builder.append("\t\treturn rr;\n");
+					builder.append("\t}\n\n");
+				}
 				
 				builder.append("}");
 				
