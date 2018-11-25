@@ -394,7 +394,7 @@ public class GenerateFiles {
 				
 				//这里开始完成save
 				builder.append("\t<insert id=\"save\""
-				+ (autoIncrementId != null ? "useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\"" : "")
+				+ (autoIncrementId != null ? " useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\"" : "")
 				+  " parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
 				builder.append("\t\tINSERT INTO " + tableName + " (\n");
 				//需要遍历所有字段, 中断save
