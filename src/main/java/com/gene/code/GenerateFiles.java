@@ -789,7 +789,7 @@ public class GenerateFiles {
 				builder.append("\tpublic ResponseResult list(MyQuery myQuery) {\n");
 				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 				builder.append("\t\ttry {\n");
-				builder.append("\t\tList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
+				builder.append("\t\t\tList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
 				builder.append("\t\t\trr.setResult(1);\n");
 				builder.append("\t\t\trr.setData(list);\n");
 				builder.append("\t\t\trr.setTotal((int)((Page<" + entityName + ">)list).getTotal());\n");
@@ -805,7 +805,7 @@ public class GenerateFiles {
 				builder.append("\tpublic ResponseResult searchList(@RequestBody MyQuery myQuery) {\n");
 				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 				builder.append("\t\ttry {\n");
-				builder.append("\t\tList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
+				builder.append("\t\t\tList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
 				builder.append("\t\t\trr.setResult(1);\n");
 				builder.append("\t\t\trr.setData(list);\n");
 				builder.append("\t\t\trr.setTotal((int)((Page<" + entityName + ">)list).getTotal());\n");
