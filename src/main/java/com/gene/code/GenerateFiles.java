@@ -33,6 +33,7 @@ public class GenerateFiles {
 		typeMap.put("VARCHAR2", "String");
 		typeMap.put("NVARCHAR", "String");
 		typeMap.put("BLOB", "Byte[]");
+		typeMap.put("CLOB", "String");
 		typeMap.put("TEXT", "String");
 		typeMap.put("BIT", "Boolean");
 		typeMap.put("TINYINT", "Integer");
@@ -100,8 +101,8 @@ public class GenerateFiles {
 			int i = 1;
 			do {
 				i++;
-				if (builder.charAt(builder.length() -2) == '_' && Character.isDigit(builder.charAt(builder.length()-1))) {
-					builder.delete(builder.length() -2, builder.length());
+				if (builder.lastIndexOf("_") != -1 && builder.substring(builder.lastIndexOf("_") + 1).matches("[\\d]+")) {
+					builder.delete(builder.lastIndexOf("_"), builder.length());
 				}
 				builder.append('_').append(i);
 				pathFile = new File(builder.toString());

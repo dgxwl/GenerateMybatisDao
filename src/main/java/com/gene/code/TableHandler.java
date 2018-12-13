@@ -4,7 +4,11 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 
 /**
  * 连接数据库, 拿到所有数据表元数据
@@ -20,6 +24,15 @@ public class TableHandler {
 		Connection conn = null;
 		try {
 			conn = DBUtils.getConnection();
+			Properties config = DBUtils.getConfigs();
+			
+			String tablesStr = config.getProperty("tables");
+			if (tablesStr == null) {
+				tablesStr = "";
+			}
+			Set<String> tableNameSet = new HashSet<>(Arrays.asList(tablesStr.split("[\\s]*[,，][\\s]*")));
+			tableNameSet.remove("");
+			
 			//获取数据库元数据
 			DatabaseMetaData metaData = conn.getMetaData();
 			
@@ -31,6 +44,10 @@ public class TableHandler {
 				Table table = new Table();
 				//获取表名
 				String tableName = resultSet.getString("TABLE_NAME");
+				//有指定表名时,跳过不需要的表
+				if (tableNameSet.size() > 0 && !tableNameSet.contains(tableName)) {
+					continue;
+				}
 				table.setTableName(tableName);
 				int lastIndex = tableName.lastIndexOf('_');
 				if (lastIndex != -1) {
