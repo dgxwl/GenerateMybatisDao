@@ -45,8 +45,7 @@ public class TableHandler {
 				//获取表名
 				String tableName = resultSet.getString("TABLE_NAME");
 				//有指定表名时,跳过不需要的表
-				if (tableNameSet.size() > 0
-						&& !tableNameSet.contains(tableName)) {
+				if (tableNameSet.size() > 0 && !tableNameSet.contains(tableName)) {
 					continue;
 				}
 				table.setTableName(tableName);

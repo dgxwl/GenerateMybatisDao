@@ -101,8 +101,7 @@ public class GenerateFiles {
 			int i = 1;
 			do {
 				i++;
-				if (builder.lastIndexOf("_") != -1 
-						&& builder.substring(builder.lastIndexOf("_") + 1).matches("[\\d]+")) {
+				if (builder.lastIndexOf("_") != -1 && builder.substring(builder.lastIndexOf("_") + 1).matches("[\\d]+")) {
 					builder.delete(builder.lastIndexOf("_"), builder.length());
 				}
 				builder.append('_').append(i);
