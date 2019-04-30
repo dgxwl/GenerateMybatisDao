@@ -271,7 +271,6 @@ public class GenerateFiles {
 				
 				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
 				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger " + "update(" + entityName + " entity);\n" : "");
-				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
 				builder.append("\tList<" + entityName + "> " + "findAll();\n");
 				builder.append("\tList<" + entityName + "> " + "findByCondition(@Param(\"myQuery\") MyQuery myQuery);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
@@ -465,26 +464,6 @@ public class GenerateFiles {
 				//把builderFindByPk拼回builder
 				builder.append(builderFindByPk);
 				
-				//findByField
-				builder.append("\t<select id=\"" + "findByField" + "\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
-				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + tableName + "\n");
-				builder.append("\t\t<where>\n");
-				i = 1;
-				for (Column c : table.getAllColumns()) {
-					String columnName = c.getColumnName();
-					String fieldName = resultMap.get(columnName) != null ? resultMap.get(columnName) : columnName;
-					if (!columnName.equals(autoIncrementId)) {
-						builder.append("\t\t\t<if test=\"" + fieldName + "!=null and " + fieldName + "!=''\">\n");
-						builder.append("\t\t\tAND " + columnName + "=#{" + fieldName + "}\n");
-						builder.append("\t\t\t</if>\n");
-					}
-					i++;
-				}
-				builder.append("\t\t</where>\n");
-				builder.append("\t</select>\n\n");
-				
 				//findByCondition
 				builder.append("\t<select id=\"findByCondition\" resultType=\""
 								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
@@ -580,7 +559,6 @@ public class GenerateFiles {
 					String byWhat = toTitleCase(keyName);
 					builder.append("\t" + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ");\n");
 				}
-				builder.append("\tList<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery);\n");
 				builder.append("\tList<" + entityName + "> findAll();\n");
 				builder.append("\tList<" + entityName + "> findByCondition(MyQuery myQuery);\n");
 				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger update(" + entityName + " entity);\n" : "");
@@ -688,23 +666,6 @@ public class GenerateFiles {
 				}
 				
 				builder.append(builderFindBy);
-				
-				builder.append("\t@Override\n");
-				builder.append("\tpublic List<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery) {\n");
-				if (autoIncrementId != null) {
-					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
-					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
-					builder.append("\t\t}\n");
-				} else if (otherTypePk != null) {
-					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(" + otherTypePk + ");\n");
-					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
-					builder.append("\t\t}\n");
-				}
-				builder.append("\t\tPageHelper.startPage(myQuery.getPage(), myQuery.getLimit(), true);\n");
-				builder.append("\t\treturn " + mapperVarName + ".findByField(entity);\n");
-				builder.append("\t}\n\n");
 
 				builder.append("\t@Override\n");
 				builder.append("\tpublic List<" + entityName + "> findAll() {\n");
