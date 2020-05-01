@@ -34,6 +34,7 @@ public class GenerateFiles {
 		typeMap.put("VARCHAR2", "String");
 		typeMap.put("NVARCHAR", "String");
 		typeMap.put("BLOB", "Byte[]");
+		typeMap.put("CLOB", "String");
 		typeMap.put("TEXT", "String");
 		typeMap.put("BIT", "Boolean");
 		typeMap.put("TINYINT", "Integer");
@@ -101,8 +102,8 @@ public class GenerateFiles {
 			int i = 1;
 			do {
 				i++;
-				if (builder.charAt(builder.length() -2) == '_' && Character.isDigit(builder.charAt(builder.length()-1))) {
-					builder.delete(builder.length() -2, builder.length());
+				if (builder.lastIndexOf("_") != -1 && builder.substring(builder.lastIndexOf("_") + 1).matches("[\\d]+")) {
+					builder.delete(builder.lastIndexOf("_"), builder.length());
 				}
 				builder.append('_').append(i);
 				pathFile = new File(builder.toString());
@@ -264,9 +265,11 @@ public class GenerateFiles {
 					String keyType = typeMap.get(key.getPkType());
 					String byWhat = toTitleCase(keyName);
 					builder.append("\t").append(entityName).append(" findBy")
-							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
+                            .append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
 					builder.append("\tInteger deleteBy")
-							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
+                            .append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
+					builder.append("\tInteger batchDeleteBy")
+                            .append(byWhat).append("s(@Param(\"").append(keyName).append("s\") List<").append(keyType).append("> ").append(keyName).append("s);\n");
 				}
 				
 				builder.append("\n}\n");
@@ -316,6 +319,7 @@ public class GenerateFiles {
 				String autoIncrementId = null;
 				//delete需要获取所有主键, 在这完成后到最后拼接
 				StringBuilder builderDelete = new StringBuilder();
+				StringBuilder builderBatchDel = new StringBuilder();
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					//搞掂save的主键自增
@@ -340,6 +344,12 @@ public class GenerateFiles {
 					builderDelete.append("\t\tDELETE FROM ").append(tableName).append("\n");
 					builderDelete.append("\t\tWHERE ").append(keyName).append("=#{").append(keyName).append("}\n");
 					builderDelete.append("\t</delete>\n\n");
+					//各款批量delete
+					builderBatchDel.append("\t<delete id=\"batchDeleteBy").append(byWhat).append("s\">\n");
+					builderBatchDel.append("\t\tDELETE FROM ").append(tableName).append("\n");
+					builderBatchDel.append("\t\tWHERE ").append(keyName).append(" in <foreach collection=\"")
+                            .append(keyName).append("s\" open=\"(\" separator=\",\" close=\")\" item=\"item\" index=\"index\">#{item}</foreach>\n");
+					builderBatchDel.append("\t</delete>\n\n");
 				}
 				
 				//resultMap
@@ -428,28 +438,7 @@ public class GenerateFiles {
 				builder.append(builderUpdate);
 				//把builderFindByPk拼回builder
 				builder.append(builderFindByPk);
-				
-				//findByField
-				builder.append("\t<select id=\"").append("findByField\" resultType=\"")
-						.append(packageName).append(".entity.").append(entityName).append("\" resultMap=\"mapping\">\n");
-				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM ").append(tableName).append("\n");
-				builder.append("\t\t<where>\n");
-				i = 1;
-				for (Column c : table.getAllColumns()) {
-					String columnName = c.getColumnName();
-					String fieldName = resultMap.get(columnName) != null ? resultMap.get(columnName) : columnName;
-					if (!columnName.equals(autoIncrementId)) {
-						builder.append("\t\t\t<if test=\"")
-								.append(fieldName).append(" != null and ").append(fieldName).append(" != ''\">\n");
-						builder.append("\t\t\tAND ").append(columnName).append("=#{").append(fieldName).append("}\n");
-						builder.append("\t\t\t</if>\n");
-					}
-					i++;
-				}
-				builder.append("\t\t</where>\n");
-				builder.append("\t</select>\n\n");
-				
+
 				//findByCondition
 				builder.append("\t<select id=\"findByCondition\" resultType=\"").append(packageName)
 						.append(".entity.").append(entityName).append("\" resultMap=\"mapping\">\n");
@@ -472,7 +461,9 @@ public class GenerateFiles {
 				
 				//delete
 				builder.append(builderDelete);
-				
+				//batchDel
+				builder.append(builderBatchDel);
+
 				builder.append("</mapper>");
 				bw.write(builder.toString());
 				bw.flush();
@@ -515,8 +506,8 @@ public class GenerateFiles {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
 					String byWhat = toTitleCase(keyName);
-					builder.append("\tInteger deleteBy").append(byWhat)
-							.append("(").append(keyType).append(" ").append(keyName).append(");\n");
+					builder.append("\tInteger deleteBy").append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
+					builder.append("\tInteger batchDeleteBy" + byWhat + "s(List<" + keyType + "> " + keyName + "s);\n");
 				}
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
@@ -525,8 +516,6 @@ public class GenerateFiles {
 					builder.append("\t").append(entityName).append(" findBy")
 							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
 				}
-				builder.append("\tList<").append(entityName)
-						.append("> findByField(").append(entityName).append(" entity, MyQuery myQuery);\n");
 				builder.append("\tList<").append(entityName).append("> findAll();\n");
 				builder.append("\tList<").append(entityName).append("> findByCondition(MyQuery myQuery);\n");
 				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger update(" + entityName + " entity);\n" : "");
@@ -581,6 +570,7 @@ public class GenerateFiles {
 				builder.append("\t@Autowired\n");
 				builder.append("\tprivate ").append(mapperName).append(" ").append(mapperVarName).append(";\n\n");
 				
+				builder.append("\t@Override\n");
 				builder.append("\tpublic Integer save(").append(entityName).append(" entity) {\n");
 				builder.append("\t\treturn ").append(mapperVarName).append(".save(entity);\n");
 				builder.append("\t}\n\n");
@@ -599,43 +589,31 @@ public class GenerateFiles {
 					}
 
 					String byWhat = toTitleCase(keyName);
-					builder.append("\tpublic Integer deleteBy").append(byWhat)
-							.append("(").append(keyType).append(" ").append(keyName).append(") { \n");
-					builder.append("\t\treturn ").append(mapperVarName).append(".deleteBy")
-							.append(byWhat).append("(").append(keyName).append(");\n");
+					builder.append("\t@Override\n");
+					builder.append("\tpublic Integer " + "deleteBy" + byWhat + "(" + keyType + " " + keyName + ") {\n");
+					builder.append("\t\treturn " + mapperVarName + ".deleteBy" + byWhat + "(" + keyName + ");\n");
 					builder.append("\t}\n\n");
 					
-					builderFindBy.append("\tpublic ").append(entityName).append(" findBy")
-							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(") {\n");
-					builderFindBy.append("\t\treturn ").append(mapperVarName).append(".findBy")
-							.append(byWhat).append("(").append(keyName).append(");\n");
+					builder.append("\t@Override\n");
+					builder.append("\tpublic Integer batchDeleteBy" + byWhat + "s(List<" + keyType + "> " + keyName + "s) {\n");
+					builder.append("\t\treturn " + mapperVarName + ".batchDeleteBy" + byWhat + "s(" + keyName + "s);\n");
+					builder.append("\t}\n\n");
+
+					builderFindBy.append("\t@Override\n");
+					builderFindBy.append("\tpublic " + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ") {\n");
+					builderFindBy.append("\t\treturn " + mapperVarName + ".findBy" + byWhat + "(" + keyName + ");\n");
 					builderFindBy.append("\t}\n\n");
 				}
 				
 				builder.append(builderFindBy);
-				
-				builder.append("\tpublic List<").append(entityName).append("> findByField(")
-						.append(entityName).append(" entity, MyQuery myQuery) {\n");
-				if (autoIncrementId != null) {
-					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(\"").append(autoIncrementId).append("\");\n");
-					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
-					builder.append("\t\t}\n");
-				} else if (otherTypePk != null) {
-					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(").append(otherTypePk).append(");\n");
-					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
-					builder.append("\t\t}\n");
-				}
-				builder.append("\t\tPageHelper.startPage(myQuery.getPage(), myQuery.getLimit(), true);\n");
-				builder.append("\t\treturn ").append(mapperVarName).append(".findByField(entity);\n");
-				builder.append("\t}\n\n");
 
+				builder.append("\t@Override\n");
 				builder.append("\tpublic List<").append(entityName).append("> findAll() {\n");
 				builder.append("\t\treturn ").append(mapperVarName).append(".findAll();\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\tpublic List<").append(entityName).append("> findByCondition(MyQuery myQuery) {\n");
+				builder.append("\t@Override\n");
+				builder.append("\tpublic List<" + entityName + "> findByCondition(MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
 					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
 					builder.append("\t\t\tmyQuery.setOrderField(\"").append(autoIncrementId).append("\");\n");
@@ -652,6 +630,7 @@ public class GenerateFiles {
 				builder.append("\t}\n\n");
 				
 				if (autoIncrementId != null) {
+					builder.append("\t@Override\n");
 					builder.append("\tpublic Integer update(").append(entityName).append(" entity) {\n");
 					builder.append("\t\treturn ").append(mapperVarName).append(".update(entity);\n");
 					builder.append("\t}\n\n");
@@ -695,6 +674,7 @@ public class GenerateFiles {
 				builder.append("package ").append(packageName).append(".controller;\n\n");
 
 				builder.append("import java.util.List;\n");
+				builder.append("import java.util.Arrays;\n");
 				builder.append("import org.springframework.web.bind.annotation.RestController;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMapping;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestMethod;\n");
@@ -813,6 +793,21 @@ public class GenerateFiles {
 					builder.append("\t\t\t\trr.setResult(-100);\n");
 					builder.append("\t\t\t\trr.setMessage(\"找不到该记录\");\n");
 					builder.append("\t\t\t}\n");
+					builder.append("\t\t} catch (Exception e) {\n");
+					builder.append("\t\t\te.printStackTrace();\n");
+					builder.append("\t\t\trr.setResult(-100);\n");
+					builder.append("\t\t\trr.setMessage(\"服务器异常\");\n");
+					builder.append("\t\t}\n");
+					builder.append("\t\treturn rr;\n");
+					builder.append("\t}\n\n");
+
+					builder.append("\t@RequestMapping(value = \"/batch_delete\", method = RequestMethod.POST)\n");
+					builder.append("\tpublic ResponseResult batchDelete(Integer[] ").append(autoIncrementId).append(") {\n");
+					builder.append("\t\tResponseResult rr = new ResponseResult();\n");
+					builder.append("\t\ttry {\n");
+					builder.append("\t\t\t").append(serviceVarName).append(".batchDeleteBy").append(toTitleCase(autoIncrementId)).append("s(Arrays.asList(").append(autoIncrementId).append("));\n");
+					builder.append("\t\t\trr.setResult(1);\n");
+					builder.append("\t\t\trr.setMessage(\"删除成功\");\n");
 					builder.append("\t\t} catch (Exception e) {\n");
 					builder.append("\t\t\te.printStackTrace();\n");
 					builder.append("\t\t\trr.setResult(-100);\n");
