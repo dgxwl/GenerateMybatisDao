@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -91,7 +92,7 @@ public class GenerateFiles {
 		}
 	}
 	
-	public static void generate(String path, String packageName) throws IOException {
+	private static void generate(String path, String packageName) throws IOException {
 		File pathFile = new File(path.replaceAll("/{2,}", "/"));
 		
 		StringBuilder builder = new StringBuilder();
@@ -125,7 +126,6 @@ public class GenerateFiles {
 	private static List<Map<String, String>> resultMaps = new ArrayList<>();
 	/**
 	 * 生成entity实体类文件
-	 * @throws IOException 
 	 */
 	private static void generateEntity(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
@@ -133,24 +133,9 @@ public class GenerateFiles {
 			Map<String, String> resultMap = new HashMap<>();
 			resultMaps.add(resultMap);
 			
-			String entityName = null;
-			String lastPart;
-			if (tableName.indexOf('_') != -1) {
-				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
-				if (Collections.frequency(entityNames, lastPart) > 1) {
-					String[] data = tableName.split("_");
-					if (data.length > 2) {
-						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
-					} else {
-						entityName = toTitleCase(data[data.length - 1]);
-					}
-				} else {
-					entityName = toTitleCase(lastPart);
-				}
-			} else {
-				entityName = toTitleCase(tableName);
-			}
-			
+			String entityName;
+			entityName = getEntityName(tableName);
+
 			List<Column> fields = table.getAllColumns();
 			
 			File f = new File(parentPath + "/entity");
@@ -166,12 +151,12 @@ public class GenerateFiles {
 									new FileOutputStream(fileName), "utf-8"));
 			) {
 				StringBuilder sbBeforeClass = new StringBuilder();
-				sbBeforeClass.append("package " + packageName + ".entity;\n\n");
+				sbBeforeClass.append("package ").append(packageName).append(".entity;\n\n");
 				sbBeforeClass.append("import lombok.Data;\n");
 				
 				StringBuilder sbAfterClass = new StringBuilder();
 				sbAfterClass.append("@Data\n");
-				sbAfterClass.append("public class " + entityName + " {\n");
+				sbAfterClass.append("public class ").append(entityName).append(" {\n");
 				for (Column column : fields) {
 					String fieldName;
 					//下划线字段名转驼峰命名
@@ -192,21 +177,17 @@ public class GenerateFiles {
 					String fieldType = typeMap.get(column.getType());
 					
 					switch (fieldType) {
-					case "Date":
-						if (sbBeforeClass.indexOf(typeImportMap.get(fieldType)) == -1) {
-							sbBeforeClass.append(typeImportMap.get(fieldType) + "\n");
-						}
-						break;
-					case "BigDecimal":
-						if (sbBeforeClass.indexOf(typeImportMap.get(fieldType)) == -1) {
-							sbBeforeClass.append(typeImportMap.get(fieldType) + "\n");
-						}
-						break;
+						case "Date":
+						case "BigDecimal":
+							if (sbBeforeClass.indexOf(typeImportMap.get(fieldType)) == -1) {
+								sbBeforeClass.append(typeImportMap.get(fieldType)).append("\n");
+							}
+							break;
 					}
 					boolean hasRemark = column.getRemarks() != null && !column.getRemarks().equals("");
 					
-					sbAfterClass.append("\tprivate " + fieldType + " " + fieldName + ";"
-										+ (hasRemark ? "  //" + column.getRemarks() : "") + "\n");
+					sbAfterClass.append("\tprivate ").append(fieldType).append(" ").append(fieldName).append(";")
+							.append((hasRemark ? "  //" + column.getRemarks() : "")).append("\n");
 				}
 				sbAfterClass.append("}\n");
 				
@@ -219,31 +200,35 @@ public class GenerateFiles {
 			}
 		}
 	}
-	
+
+	private static String getEntityName(String tableName) {
+		String entityName;
+		String lastPart;
+		if (tableName.indexOf('_') != -1) {
+			lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
+			if (Collections.frequency(entityNames, lastPart) > 1) {
+				String[] data = tableName.split("_");
+				if (data.length > 2) {
+					entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
+				} else {
+					entityName = toTitleCase(data[data.length - 1]);
+				}
+			} else {
+				entityName = toTitleCase(lastPart);
+			}
+		} else {
+			entityName = toTitleCase(tableName);
+		}
+		return entityName;
+	}
+
 	/**
 	 * 生成mapper接口文件
-	 * @throws IOException 
 	 */
 	private static void generateMapper(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
-			String entityName = null;
-			String lastPart;
-			if (tableName.indexOf('_') != -1) {
-				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
-				if (Collections.frequency(entityNames, lastPart) > 1) {
-					String[] data = tableName.split("_");
-					if (data.length > 2) {
-						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
-					} else {
-						entityName = toTitleCase(data[data.length - 1]);
-					}
-				} else {
-					entityName = toTitleCase(lastPart);
-				}
-			} else {
-				entityName = toTitleCase(tableName);
-			}
+			String entityName = getEntityName(tableName);
 			String mapperName = entityName + "Mapper";
 			
 			File f = new File(parentPath + "/mapper");
@@ -256,32 +241,32 @@ public class GenerateFiles {
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(fileName), "utf-8"));
+									new FileOutputStream(fileName), StandardCharsets.UTF_8));
 			) {
 				StringBuilder builder = new StringBuilder();
-				builder.append("package " + packageName + ".mapper;\n\n");
+				builder.append("package ").append(packageName).append(".mapper;\n\n");
 				
 				builder.append("import java.util.List;\n");
 				builder.append("import org.apache.ibatis.annotations.Param;\n");
-				builder.append("import "+ packageName +".entity." + entityName + ";\n");
-				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
+				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
+				builder.append("import ").append(packageName).append(".domain.MyQuery;\n\n");
 				
-				builder.append("public interface " + mapperName + " {\n\n");
+				builder.append("public interface ").append(mapperName).append(" {\n\n");
 				
-				builder.append("\tInteger " + "save(" + entityName +" entity);\n");
+				builder.append("\tInteger save(").append(entityName).append(" entity);\n");
 				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger " + "update(" + entityName + " entity);\n" : "");
-				builder.append("\tList<" + entityName + "> " + "findByField("+ entityName +" entity);\n");
-				builder.append("\tList<" + entityName + "> " + "findAll();\n");
-				builder.append("\tList<" + entityName + "> " + "findByCondition(@Param(\"myQuery\") MyQuery myQuery);\n");
+				builder.append("\tList<").append(entityName).append("> findByField(").append(entityName).append(" entity);\n");
+				builder.append("\tList<").append(entityName).append("> findAll();\n");
+				builder.append("\tList<").append(entityName).append("> findByCondition(@Param(\"myQuery\") MyQuery myQuery);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
 					String byWhat = toTitleCase(keyName);
-					builder.append("\t" + entityName + " findBy" + byWhat
-									+ "(" + keyType + " " + keyName + ");\n");
-					builder.append("\tInteger " + "deleteBy" + byWhat
-									+ "(" + keyType + " " + keyName + ");\n");
+					builder.append("\t").append(entityName).append(" findBy")
+							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
+					builder.append("\tInteger deleteBy")
+							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
 				}
 				
 				builder.append("\n}\n");
@@ -296,29 +281,12 @@ public class GenerateFiles {
 	
 	/**
 	 * 生成mapper映射器文件
-	 * @throws IOException 
 	 */
 	private static void generateXmlMappers(String parentPath, String packageName) throws IOException {
 		int index = 0;
 		for (Table table : tables) {
 			String tableName = table.getTableName();
-			String entityName = null;
-			String lastPart;
-			if (tableName.indexOf('_') != -1) {
-				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
-				if (Collections.frequency(entityNames, lastPart) > 1) {
-					String[] data = tableName.split("_");
-					if (data.length > 2) {
-						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
-					} else {
-						entityName = toTitleCase(data[data.length - 1]);
-					}
-				} else {
-					entityName = toTitleCase(lastPart);
-				}
-			} else {
-				entityName = toTitleCase(tableName);
-			}
+			String entityName = getEntityName(tableName);
 			String mapperName = entityName + "Mapper";
 			
 			File f = new File(parentPath + "/mappers");
@@ -331,7 +299,7 @@ public class GenerateFiles {
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(fileName), "utf-8"));
+									new FileOutputStream(fileName), StandardCharsets.UTF_8));
 			) {
 				StringBuilder builder = new StringBuilder();
 				builder.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -339,7 +307,8 @@ public class GenerateFiles {
 				builder.append("  PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\"\n");
 				builder.append("  \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n\n");
 				
-				builder.append("<mapper namespace=\"" + packageName + ".mapper." + entityName + "Mapper\">\n\n");
+				builder.append("<mapper namespace=\"").append(packageName).append(".mapper.")
+						.append(entityName).append("Mapper\">\n\n");
 				
 				//暂时不写save, 需要获取自增主键再继续
 				
@@ -358,22 +327,24 @@ public class GenerateFiles {
 					
 					//用builderFindByPk搞掂根据主键查询的各方法, 出了循环拼回原builder
 					String byWhat = toTitleCase(keyName);
-					builderFindByPk.append("\t<select id=\"findBy" + byWhat + "\" "
-							+ "resultType=\"" + packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
+					builderFindByPk.append("\t<select id=\"findBy").append(byWhat)
+							.append("\" resultType=\"").append(packageName).append(".entity.").append(entityName)
+							.append("\" resultMap=\"mapping\">\n");
 					builderFindByPk.append("\t\tSELECT *\n");
-					builderFindByPk.append("\t\tFROM " + tableName + "\n");
-					builderFindByPk.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
+					builderFindByPk.append("\t\tFROM ").append(tableName).append("\n");
+					builderFindByPk.append("\t\tWHERE ").append(keyName).append("=#{").append(keyName).append("}\n");
 					builderFindByPk.append("\t</select>\n\n");
 					
 					//各款delete
-					builderDelete.append("\t<delete id=\"deleteBy" + byWhat + "\">\n");
-					builderDelete.append("\t\tDELETE FROM " + tableName + "\n");
-					builderDelete.append("\t\tWHERE " + keyName + "=#{" + keyName + "}\n");
+					builderDelete.append("\t<delete id=\"deleteBy").append(byWhat).append("\">\n");
+					builderDelete.append("\t\tDELETE FROM ").append(tableName).append("\n");
+					builderDelete.append("\t\tWHERE ").append(keyName).append("=#{").append(keyName).append("}\n");
 					builderDelete.append("\t</delete>\n\n");
 				}
 				
 				//resultMap
-				builder.append("\t<resultMap id=\"mapping\" type=\""+ packageName + ".entity." + entityName +"\">\n");
+				builder.append("\t<resultMap id=\"mapping\" type=\"")
+						.append(packageName).append(".entity.").append(entityName).append("\">\n");
 				Map<String, String> resultMap = resultMaps.get(index);
 				if (resultMap.size() > 0) {
 					for (Map.Entry<String, String> entry : resultMaps.get(index).entrySet()) {
@@ -381,11 +352,12 @@ public class GenerateFiles {
 						String fieldName = entry.getValue();
 						
 						if (columnName.equals(autoIncrementId)) {
-							builder.append("\t\t<id column=\""+ columnName +"\" property=\""
-									+ fieldName + "\" javaType=\"java.lang.Integer\" />\n");
+							builder.append("\t\t<id column=\"").append(columnName).append("\" property=\"").append(fieldName)
+									.append("\" javaType=\"java.lang.Integer\" />\n");
 						} else {
-							builder.append("\t\t<result column=\""+ columnName +"\" property=\""
-									+ fieldName + "\" javaType=\"" + fullNameTypeMap.get(table.getTypeByColumnName(columnName)) + "\" />\n");
+							builder.append("\t\t<result column=\"").append(columnName).append("\" property=\"")
+									.append(fieldName).append("\" javaType=\"")
+									.append(fullNameTypeMap.get(table.getTypeByColumnName(columnName))).append("\" />\n");
 						}
 					}
 				}
@@ -393,17 +365,18 @@ public class GenerateFiles {
 				builder.append("\t</resultMap>\n\n");
 				
 				//这里开始完成save
-				builder.append("\t<insert id=\"save\""
-				+ (autoIncrementId != null ? " useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\"" : "")
-				+  " parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
-				builder.append("\t\tINSERT INTO " + tableName + " (\n");
+				builder.append("\t<insert id=\"save\"")
+			.append((autoIncrementId != null ? " useGeneratedKeys=\"true\" keyProperty=\"" + autoIncrementId + "\"" : ""))
+						.append(" parameterType=\"").append(packageName).append(".entity.").append(entityName).append("\">\n");
+				builder.append("\t\tINSERT INTO ").append(tableName).append(" (\n");
 				//需要遍历所有字段, 中断save
 				
 				//UPDATE
 				StringBuilder builderUpdate = new StringBuilder();
 				if (autoIncrementId != null) {
-					builderUpdate.append("\t<update id=\"update\" parameterType=\"" + packageName + ".entity." + entityName + "\">\n");
-					builderUpdate.append("\t\tUPDATE " + tableName + "\n");
+					builderUpdate.append("\t<update id=\"update\" parameterType=\"")
+							.append(packageName).append(".entity.").append(entityName).append("\">\n");
+					builderUpdate.append("\t\tUPDATE ").append(tableName).append("\n");
 					builderUpdate.append("\t\t<set>\n");
 				}
 				
@@ -414,14 +387,15 @@ public class GenerateFiles {
 					String fieldName = resultMap.get(columnName) != null ? resultMap.get(columnName) : columnName;
 					//搞掂save的插入字段
 					if (!columnName.equals(autoIncrementId)) {
-						builder.append("\t\t\t" + columnName + ",\n");
-						builderAfterValues.append("\t\t\t#{" + fieldName + "},\n");
+						builder.append("\t\t\t").append(columnName).append(",\n");
+						builderAfterValues.append("\t\t\t#{").append(fieldName).append("},\n");
 					}
 					
 					//搞掂update
 					if (autoIncrementId != null && !columnName.equals(autoIncrementId)) {
-						builderUpdate.append("\t\t<if test=\"" + fieldName + "!=null and " + fieldName + "!=''\">\n");
-						builderUpdate.append("\t\t" + columnName + "=#{" + fieldName + "}");
+						builderUpdate.append("\t\t<if test=\"").append(fieldName)
+								.append("!=null and ").append(fieldName).append("!=''\">\n");
+						builderUpdate.append("\t\t").append(columnName).append("=#{").append(fieldName).append("}");
 						if (i == table.getAllColumns().size()) {
 							builderUpdate.append("\n");
 						} else {
@@ -433,7 +407,7 @@ public class GenerateFiles {
 				}
 				if (autoIncrementId != null) {
 					builderUpdate.append("\t\t</set>\n");
-					builderUpdate.append("\t\tWHERE " + autoIncrementId + "=#{" + autoIncrementId + "}\n");
+					builderUpdate.append("\t\tWHERE ").append(autoIncrementId).append("=#{").append(autoIncrementId).append("}\n");
 					builderUpdate.append("\t</update>\n\n");
 				}
 				
@@ -456,18 +430,19 @@ public class GenerateFiles {
 				builder.append(builderFindByPk);
 				
 				//findByField
-				builder.append("\t<select id=\"" + "findByField" + "\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
+				builder.append("\t<select id=\"").append("findByField\" resultType=\"")
+						.append(packageName).append(".entity.").append(entityName).append("\" resultMap=\"mapping\">\n");
 				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + tableName + "\n");
+				builder.append("\t\tFROM ").append(tableName).append("\n");
 				builder.append("\t\t<where>\n");
 				i = 1;
 				for (Column c : table.getAllColumns()) {
 					String columnName = c.getColumnName();
 					String fieldName = resultMap.get(columnName) != null ? resultMap.get(columnName) : columnName;
 					if (!columnName.equals(autoIncrementId)) {
-						builder.append("\t\t\t<if test=\"" + fieldName + "!=null and " + fieldName + "!=''\">\n");
-						builder.append("\t\t\tAND " + columnName + "=#{" + fieldName + "}\n");
+						builder.append("\t\t\t<if test=\"")
+								.append(fieldName).append(" != null and ").append(fieldName).append(" != ''\">\n");
+						builder.append("\t\t\tAND ").append(columnName).append("=#{").append(fieldName).append("}\n");
 						builder.append("\t\t\t</if>\n");
 					}
 					i++;
@@ -476,10 +451,10 @@ public class GenerateFiles {
 				builder.append("\t</select>\n\n");
 				
 				//findByCondition
-				builder.append("\t<select id=\"findByCondition\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
+				builder.append("\t<select id=\"findByCondition\" resultType=\"").append(packageName)
+						.append(".entity.").append(entityName).append("\" resultMap=\"mapping\">\n");
 				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + tableName + "\n");
+				builder.append("\t\tFROM ").append(tableName).append("\n");
 				builder.append("\t\t<where>\n");
 				builder.append("\t\t\t<foreach collection=\"myQuery.filters\" separator=\"AND\" item=\"filter\">\n");
 				builder.append("\t\t\t\t${filter.column} ${filter.operator} ${filter.value}\n");
@@ -489,10 +464,10 @@ public class GenerateFiles {
 				builder.append("\t</select>\n\n");
 				
 				//findAll
-				builder.append("\t<select id=\"findAll\" resultType=\""
-								+ packageName + ".entity." + entityName + "\" resultMap=\"mapping\">\n");
+				builder.append("\t<select id=\"findAll\" resultType=\"").append(packageName)
+						.append(".entity.").append(entityName).append("\" resultMap=\"mapping\">\n");
 				builder.append("\t\tSELECT *\n");
-				builder.append("\t\tFROM " + tableName + "\n");
+				builder.append("\t\tFROM ").append(tableName).append("\n");
 				builder.append("\t</select>\n\n");
 				
 				//delete
@@ -509,30 +484,11 @@ public class GenerateFiles {
 	
 	/**
 	 * 生成service接口文件
-	 * @param parentPath
-	 * @param packageName
-	 * @throws IOException
 	 */
 	private static void generateIService(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
-			String entityName = null;
-			String lastPart;
-			if (tableName.indexOf('_') != -1) {
-				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
-				if (Collections.frequency(entityNames, lastPart) > 1) {
-					String[] data = tableName.split("_");
-					if (data.length > 2) {
-						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
-					} else {
-						entityName = toTitleCase(data[data.length - 1]);
-					}
-				} else {
-					entityName = toTitleCase(lastPart);
-				}
-			} else {
-				entityName = toTitleCase(tableName);
-			}
+			String entityName = getEntityName(tableName);
 			String serviceName = entityName + "Service";
 			
 			File f = new File(parentPath + "/service");
@@ -545,31 +501,34 @@ public class GenerateFiles {
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(fileName), "utf-8"));
+									new FileOutputStream(fileName), StandardCharsets.UTF_8));
 			) {
 				StringBuilder builder = new StringBuilder();
-				builder.append("package " + packageName + ".service;\n\n");
+				builder.append("package ").append(packageName).append(".service;\n\n");
 				builder.append("import java.util.List;\n");
-				builder.append("import " + packageName +".entity." + entityName + ";\n");
-				builder.append("import " + packageName +".domain.MyQuery;\n\n");
-				builder.append("public interface I" + serviceName + " {\n");
-				builder.append("\tInteger save(" + entityName + " entity);\n");
+				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
+				builder.append("import ").append(packageName).append(".domain.MyQuery;\n\n");
+				builder.append("public interface I").append(serviceName).append(" {\n");
+				builder.append("\tInteger save(").append(entityName).append(" entity);\n");
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
 					String byWhat = toTitleCase(keyName);
-					builder.append("\tInteger deleteBy" + byWhat + "(" + keyType + " " + keyName + ");\n");
+					builder.append("\tInteger deleteBy").append(byWhat)
+							.append("(").append(keyType).append(" ").append(keyName).append(");\n");
 				}
 				for (PrimaryKey key : keys) {
 					String keyName = key.getPkName();
 					String keyType = typeMap.get(key.getPkType());
 					String byWhat = toTitleCase(keyName);
-					builder.append("\t" + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ");\n");
+					builder.append("\t").append(entityName).append(" findBy")
+							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(");\n");
 				}
-				builder.append("\tList<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery);\n");
-				builder.append("\tList<" + entityName + "> findAll();\n");
-				builder.append("\tList<" + entityName + "> findByCondition(MyQuery myQuery);\n");
+				builder.append("\tList<").append(entityName)
+						.append("> findByField(").append(entityName).append(" entity, MyQuery myQuery);\n");
+				builder.append("\tList<").append(entityName).append("> findAll();\n");
+				builder.append("\tList<").append(entityName).append("> findByCondition(MyQuery myQuery);\n");
 				builder.append(table.getAllPrimaryKeys().size() > 0 ? "\tInteger update(" + entityName + " entity);\n" : "");
 				builder.append("}\n");
 				
@@ -583,28 +542,11 @@ public class GenerateFiles {
 	
 	/**
 	 * 生成service文件
-	 * @throws IOException 
 	 */
 	private static void generateService(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
-			String entityName = null;
-			String lastPart;
-			if (tableName.indexOf('_') != -1) {
-				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
-				if (Collections.frequency(entityNames, lastPart) > 1) {
-					String[] data = tableName.split("_");
-					if (data.length > 2) {
-						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
-					} else {
-						entityName = toTitleCase(data[data.length - 1]);
-					}
-				} else {
-					entityName = toTitleCase(lastPart);
-				}
-			} else {
-				entityName = toTitleCase(tableName);
-			}
+			String entityName = getEntityName(tableName);
 			String serviceName = entityName + "Service";
 			String mapperName = entityName + "Mapper";
 			String mapperVarName = toContentCase(mapperName);
@@ -619,28 +561,28 @@ public class GenerateFiles {
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(fileName), "utf-8"));
+									new FileOutputStream(fileName), StandardCharsets.UTF_8));
 			) {
 				StringBuilder builder = new StringBuilder();
-				builder.append("package " + packageName + ".service;\n\n");
+				builder.append("package ").append(packageName).append(".service;\n\n");
 				
 				builder.append("import java.util.List;\n");
 				builder.append("import org.springframework.stereotype.Service;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
 				builder.append("import com.github.pagehelper.PageHelper;\n");
-				builder.append("import " + packageName +".mapper." + entityName + "Mapper;\n");
-				builder.append("import " + packageName +".entity." + entityName + ";\n");
-				builder.append("import " + packageName +".util.StringUtils;\n");
-				builder.append("import " + packageName +".domain.MyQuery;\n\n");
+				builder.append("import ").append(packageName).append(".mapper.").append(entityName).append("Mapper;\n");
+				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
+				builder.append("import ").append(packageName).append(".util.StringUtils;\n");
+				builder.append("import ").append(packageName).append(".domain.MyQuery;\n\n");
 				
 				builder.append("@Service\n");
-				builder.append("public class " + serviceName + " implements " + "I" + serviceName + " {\n\n");
+				builder.append("public class ").append(serviceName).append(" implements I").append(serviceName).append(" {\n\n");
 				
 				builder.append("\t@Autowired\n");
-				builder.append("\tprivate " + mapperName + " " + mapperVarName + ";\n\n");
+				builder.append("\tprivate ").append(mapperName).append(" ").append(mapperVarName).append(";\n\n");
 				
-				builder.append("\tpublic Integer save(" + entityName +" entity) {\n");
-				builder.append("\t\treturn " + mapperVarName + ".save(entity);\n");
+				builder.append("\tpublic Integer save(").append(entityName).append(" entity) {\n");
+				builder.append("\t\treturn ").append(mapperVarName).append(".save(entity);\n");
 				builder.append("\t}\n\n");
 				
 				StringBuilder builderFindBy = new StringBuilder();
@@ -657,56 +599,61 @@ public class GenerateFiles {
 					}
 
 					String byWhat = toTitleCase(keyName);
-					builder.append("\tpublic Integer " + "deleteBy" + byWhat + "(" + keyType + " " + keyName + ") { \n");
-					builder.append("\t\treturn " + mapperVarName + ".deleteBy" + byWhat + "(" + keyName + ");\n");
+					builder.append("\tpublic Integer deleteBy").append(byWhat)
+							.append("(").append(keyType).append(" ").append(keyName).append(") { \n");
+					builder.append("\t\treturn ").append(mapperVarName).append(".deleteBy")
+							.append(byWhat).append("(").append(keyName).append(");\n");
 					builder.append("\t}\n\n");
 					
-					builderFindBy.append("\tpublic " + entityName + " findBy" + byWhat + "(" + keyType + " " + keyName + ") {\n");
-					builderFindBy.append("\t\treturn " + mapperVarName + ".findBy" + byWhat + "(" + keyName + ");\n");
+					builderFindBy.append("\tpublic ").append(entityName).append(" findBy")
+							.append(byWhat).append("(").append(keyType).append(" ").append(keyName).append(") {\n");
+					builderFindBy.append("\t\treturn ").append(mapperVarName).append(".findBy")
+							.append(byWhat).append("(").append(keyName).append(");\n");
 					builderFindBy.append("\t}\n\n");
 				}
 				
 				builder.append(builderFindBy);
 				
-				builder.append("\tpublic List<" + entityName + "> findByField(" + entityName + " entity, MyQuery myQuery) {\n");
+				builder.append("\tpublic List<").append(entityName).append("> findByField(")
+						.append(entityName).append(" entity, MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
 					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
+					builder.append("\t\t\tmyQuery.setOrderField(\"").append(autoIncrementId).append("\");\n");
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				} else if (otherTypePk != null) {
 					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(" + otherTypePk + ");\n");
+					builder.append("\t\t\tmyQuery.setOrderField(").append(otherTypePk).append(");\n");
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				}
 				builder.append("\t\tPageHelper.startPage(myQuery.getPage(), myQuery.getLimit(), true);\n");
-				builder.append("\t\treturn " + mapperVarName + ".findByField(entity);\n");
+				builder.append("\t\treturn ").append(mapperVarName).append(".findByField(entity);\n");
 				builder.append("\t}\n\n");
 
-				builder.append("\tpublic List<" + entityName + "> findAll() {\n");
-				builder.append("\t\treturn " + mapperVarName + ".findAll();\n");
+				builder.append("\tpublic List<").append(entityName).append("> findAll() {\n");
+				builder.append("\t\treturn ").append(mapperVarName).append(".findAll();\n");
 				builder.append("\t}\n\n");
 				
-				builder.append("\tpublic List<" + entityName + "> findByCondition(MyQuery myQuery) {\n");
+				builder.append("\tpublic List<").append(entityName).append("> findByCondition(MyQuery myQuery) {\n");
 				if (autoIncrementId != null) {
 					builder.append("\t\tif (myQuery != null && StringUtils.isNullOrEmpty(myQuery.getOrderField())) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(\"" + autoIncrementId + "\");\n");
+					builder.append("\t\t\tmyQuery.setOrderField(\"").append(autoIncrementId).append("\");\n");
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				} else if (otherTypePk != null) {
 					builder.append("\t\tif (myQuery != null && myQuery.getOrderField() == null) {\n");
-					builder.append("\t\t\tmyQuery.setOrderField(" + otherTypePk + ");\n");
+					builder.append("\t\t\tmyQuery.setOrderField(").append(otherTypePk).append(");\n");
 					builder.append("\t\t\tmyQuery.setOrderType(\"ASC\");\n");
 					builder.append("\t\t}\n");
 				}
 				builder.append("\t\tPageHelper.startPage(myQuery.getPage(), myQuery.getLimit(), true);\n");
-				builder.append("\t\treturn " + mapperVarName + ".findByCondition(myQuery);\n");
+				builder.append("\t\treturn ").append(mapperVarName).append(".findByCondition(myQuery);\n");
 				builder.append("\t}\n\n");
 				
 				if (autoIncrementId != null) {
-					builder.append("\tpublic Integer update(" + entityName + " entity) {\n");
-					builder.append("\t\treturn " + mapperVarName + ".update(entity);\n");
+					builder.append("\tpublic Integer update(").append(entityName).append(" entity) {\n");
+					builder.append("\t\treturn ").append(mapperVarName).append(".update(entity);\n");
 					builder.append("\t}\n\n");
 				}
 				
@@ -722,30 +669,11 @@ public class GenerateFiles {
 	
 	/**
 	 * 生成controller文件
-	 * @param finalParentPath
-	 * @param packageName
-	 * @throws IOException 
 	 */
 	private static void generateController(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
-			String entityName = null;
-			String lastPart;
-			if (tableName.indexOf('_') != -1) {
-				lastPart = tableName.substring(tableName.lastIndexOf('_') + 1);
-				if (Collections.frequency(entityNames, lastPart) > 1) {
-					String[] data = tableName.split("_");
-					if (data.length > 2) {
-						entityName = toTitleCase(data[data.length - 2]) + toTitleCase(data[data.length - 1]);
-					} else {
-						entityName = toTitleCase(data[data.length - 1]);
-					}
-				} else {
-					entityName = toTitleCase(lastPart);
-				}
-			} else {
-				entityName = toTitleCase(tableName);
-			}
+			String entityName = getEntityName(tableName);
 			String controllerName = entityName + "Controller";
 			String serviceName = entityName + "Service";
 			String serviceVarName = toContentCase(serviceName);
@@ -760,11 +688,11 @@ public class GenerateFiles {
 			try (
 					BufferedWriter bw = new BufferedWriter(
 							new OutputStreamWriter(
-									new FileOutputStream(fileName), "utf-8"));
+									new FileOutputStream(fileName), StandardCharsets.UTF_8));
 			) {
 				StringBuilder builder = new StringBuilder();
 				
-				builder.append("package " + packageName + ".controller;\n\n");
+				builder.append("package ").append(packageName).append(".controller;\n\n");
 
 				builder.append("import java.util.List;\n");
 				builder.append("import org.springframework.web.bind.annotation.RestController;\n");
@@ -772,27 +700,28 @@ public class GenerateFiles {
 				builder.append("import org.springframework.web.bind.annotation.RequestMethod;\n");
 				builder.append("import org.springframework.web.bind.annotation.RequestBody;\n");
 				builder.append("import org.springframework.beans.factory.annotation.Autowired;\n");
-				builder.append("import "+ packageName +".service.I" + serviceName + ";\n");
-				builder.append("import "+ packageName +".entity." + entityName + ";\n");
+				builder.append("import ").append(packageName).append(".service.I").append(serviceName).append(";\n");
+				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 				builder.append("import com.github.pagehelper.Page;\n");
-				builder.append("import " + packageName + ".domain.ResponseResult;\n");
-				builder.append("import "+ packageName +".domain.MyQuery;\n\n");
+				builder.append("import ").append(packageName).append(".domain.ResponseResult;\n");
+				builder.append("import ").append(packageName).append(".domain.MyQuery;\n\n");
 				
 				builder.append("@RestController\n");
-				builder.append("@RequestMapping(\"/" + entityName.toLowerCase() + "\")\n");
-				builder.append("public class " + controllerName + " {\n\n");
+				builder.append("@RequestMapping(\"/").append(entityName.toLowerCase()).append("\")\n");
+				builder.append("public class ").append(controllerName).append(" {\n\n");
 				
 				builder.append("\t@Autowired\n");
-				builder.append("\tprivate I" + serviceName + " " + serviceVarName + ";\n\n");
+				builder.append("\tprivate I").append(serviceName).append(" ").append(serviceVarName).append(";\n\n");
 				
 				builder.append("\t@RequestMapping(\"/list\")\n");
 				builder.append("\tpublic ResponseResult list(MyQuery myQuery) {\n");
 				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 				builder.append("\t\ttry {\n");
-				builder.append("\t\t\tList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
+				builder.append("\t\t\tList<").append(entityName).append("> list = ")
+						.append(serviceVarName).append(".findByCondition(myQuery);\n");
 				builder.append("\t\t\trr.setResult(1);\n");
 				builder.append("\t\t\trr.setData(list);\n");
-				builder.append("\t\t\trr.setTotal((int)((Page<" + entityName + ">)list).getTotal());\n");
+				builder.append("\t\t\trr.setTotal((int)((Page<").append(entityName).append(">)list).getTotal());\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
 				builder.append("\t\t\trr.setResult(-100);\n");
@@ -805,10 +734,11 @@ public class GenerateFiles {
 				builder.append("\tpublic ResponseResult searchList(@RequestBody MyQuery myQuery) {\n");
 				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 				builder.append("\t\ttry {\n");
-				builder.append("\t\t\tList<"+ entityName +"> list = " + serviceVarName + ".findByCondition(myQuery);\n");
+				builder.append("\t\t\tList<").append(entityName).append("> list = ")
+						.append(serviceVarName).append(".findByCondition(myQuery);\n");
 				builder.append("\t\t\trr.setResult(1);\n");
 				builder.append("\t\t\trr.setData(list);\n");
-				builder.append("\t\t\trr.setTotal((int)((Page<" + entityName + ">)list).getTotal());\n");
+				builder.append("\t\t\trr.setTotal((int)((Page<").append(entityName).append(">)list).getTotal());\n");
 				builder.append("\t\t} catch (Exception e) {\n");
 				builder.append("\t\t\te.printStackTrace();\n");
 				builder.append("\t\t\trr.setResult(-100);\n");
@@ -818,10 +748,10 @@ public class GenerateFiles {
 				builder.append("\t}\n\n");
 				
 				builder.append("\t@RequestMapping(value = \"/save\", method = RequestMethod.POST)\n");
-				builder.append("\tpublic ResponseResult save(" + entityName + " entity) {\n");
+				builder.append("\tpublic ResponseResult save(").append(entityName).append(" entity) {\n");
 				builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 				builder.append("\t\ttry {\n");
-				builder.append("\t\t\tInteger result = " + serviceVarName + ".save(entity);\n");
+				builder.append("\t\t\tInteger result = ").append(serviceVarName).append(".save(entity);\n");
 				builder.append("\t\t\tif (result > 0) {\n");
 				builder.append("\t\t\t\trr.setResult(1);\n");
 				builder.append("\t\t\t\trr.setMessage(\"保存成功\");\n");
@@ -849,10 +779,10 @@ public class GenerateFiles {
 				
 				if (autoIncrementId != null) {
 					builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
-					builder.append("\tpublic ResponseResult update(" + entityName + " entity) {\n");
+					builder.append("\tpublic ResponseResult update(").append(entityName).append(" entity) {\n");
 					builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 					builder.append("\t\ttry {\n");
-					builder.append("\t\t\tInteger result = " + serviceVarName + ".update(entity);\n");
+					builder.append("\t\t\tInteger result = ").append(serviceVarName).append(".update(entity);\n");
 					builder.append("\t\t\tif (result > 0) {\n");
 					builder.append("\t\t\t\trr.setResult(1);\n");
 					builder.append("\t\t\t\trr.setMessage(\"修改成功\");\n");
@@ -871,11 +801,11 @@ public class GenerateFiles {
 				
 				if (autoIncrementId != null) {
 					builder.append("\t@RequestMapping(value = \"/delete\", method = RequestMethod.POST)\n");
-					builder.append("\tpublic ResponseResult delete(Integer " + autoIncrementId + ") {\n");
+					builder.append("\tpublic ResponseResult delete(Integer ").append(autoIncrementId).append(") {\n");
 					builder.append("\t\tResponseResult rr = new ResponseResult();\n");
 					builder.append("\t\ttry {\n");
-					builder.append("\t\t\tInteger result = " + serviceVarName + ".deleteBy"
-									+ toTitleCase(autoIncrementId) + "(" + autoIncrementId + ");\n");
+					builder.append("\t\t\tInteger result = ").append(serviceVarName).append(".deleteBy")
+							.append(toTitleCase(autoIncrementId)).append("(").append(autoIncrementId).append(");\n");
 					builder.append("\t\t\tif (result > 0) {\n");
 					builder.append("\t\t\t\trr.setResult(1);\n");
 					builder.append("\t\t\t\trr.setMessage(\"删除成功\");\n");
