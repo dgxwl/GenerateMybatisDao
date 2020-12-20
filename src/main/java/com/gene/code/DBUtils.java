@@ -1,11 +1,11 @@
 package com.gene.code;
 
+import org.apache.commons.dbcp.BasicDataSource;
+
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
-
-import org.apache.commons.dbcp.BasicDataSource;
 
 public class DBUtils {
 	private static String driver;
@@ -20,8 +20,7 @@ public class DBUtils {
 
 	private static Properties config = new Properties();
 	static {
-		try {
-			InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("db.properties");
+		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("db.properties")) {
 			config.load(in);
 			
 			driver = config.getProperty("jdbc.driver");

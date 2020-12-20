@@ -2,6 +2,7 @@ package com.gene.code;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,7 +56,27 @@ public class TableHandler {
 				}
 				
 				//获得该表字段的元数据
-				ResultSet rs = metaData.getColumns(null, schema, tableName, "%");
+				ResultSet rs;
+				boolean isPostgresql = isPostgresql(config);
+				if (isPostgresql) {
+					String sql = "SELECT\n" +
+							"COLUMN_NAME,\n" +
+							"CASE WHEN udt_name = 'int2' THEN 'SMALLINT'" +
+							"WHEN udt_name = 'int4' THEN 'INTEGER'" +
+							"WHEN udt_name = 'int8' THEN 'BIGINT'" +
+							"ELSE upper(udt_name) END TYPE_NAME,\n" +
+							"COALESCE(character_maximum_length,0) COLUMN_SIZE,\n" +
+							"COALESCE(numeric_scale,0) DECIMAL_DIGITS,\n" +
+							"CASE WHEN is_nullable = 'YES' THEN 1 ELSE 0 END NULLABLE,\n" +
+							"'' REMARKS\n" +
+							"FROM information_schema.columns \n" +
+							"WHERE table_schema='public' AND table_name=?";
+					PreparedStatement ps = conn.prepareStatement(sql);
+					ps.setString(1, tableName);
+					rs = ps.executeQuery();
+				} else {
+					rs = metaData.getColumns(null, schema, tableName, "%");
+				}
 				while (rs.next()) {
 					Column column = new Column();
 
@@ -75,7 +96,7 @@ public class TableHandler {
 					table.addColumn(column);
 					table.addColumnNameAndType(columnName, type);
 				}
-				
+
 				//获取主键元数据
 				ResultSet pkSet = metaData.getPrimaryKeys(null, null, tableName);
 				while (pkSet.next()) {
@@ -114,5 +135,10 @@ public class TableHandler {
 	 */
 	public static List<String> getEntityNames() {
 		return entityNames;
+	}
+
+	private static boolean isPostgresql(Properties prop) {
+		String driverStr = prop.getProperty("jdbc.driver");
+		return driverStr != null && driverStr.contains("postgresql");
 	}
 }
