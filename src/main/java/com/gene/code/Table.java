@@ -15,7 +15,8 @@ public class Table {
 	private List<Column> columns = new ArrayList<>();  //所有字段
 	private Map<String, String> columnNameAndType = new HashMap<>();  //字段名和类型映射
 	private List<PrimaryKey> primaryKeys = new ArrayList<>();  //主键名及其序列位置
-	
+	private List<Table> slaves = new ArrayList<>();  //从表
+
 	public Table() {
 	}
 
@@ -51,9 +52,17 @@ public class Table {
 		this.primaryKeys.add(primaryKey);
 	}
 
+	public List<Table> getAllSlaves() {
+		return slaves;
+	}
+
+	public void addSlave(Table slaves) {
+		this.slaves.add(slaves);
+	}
+
 	@Override
 	public String toString() {
-		return "表名: " + tableName + ",\n\t字段: " + columns + ",\n\t主键: " + primaryKeys + "\n";
+		return "表名: " + tableName + ",\n\t字段: " + columns + ",\n\t主键: " + primaryKeys + "\n\t从表: " + slaves;
 	}
-	
+
 }
