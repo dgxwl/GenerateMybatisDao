@@ -2,8 +2,10 @@ package com.gene.code;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 一张数据表的元数据
@@ -15,6 +17,7 @@ public class Table {
 	private List<Column> columns = new ArrayList<>();  //所有字段
 	private Map<String, String> columnNameAndType = new HashMap<>();  //字段名和类型映射
 	private List<PrimaryKey> primaryKeys = new ArrayList<>();  //主键名及其序列位置
+	private Set<String> autoIncrementCols = new HashSet<>();
 	private List<Table> slaves = new ArrayList<>();  //从表
 
 	public Table() {
@@ -50,6 +53,14 @@ public class Table {
 
 	public void addPrimaryKey(PrimaryKey primaryKey) {
 		this.primaryKeys.add(primaryKey);
+	}
+
+	public Set<String> getAllAutoIncrementCols() {
+		return autoIncrementCols;
+	}
+
+	public void addAutoIncrementCols(String autoIncrementCol) {
+		this.autoIncrementCols.add(autoIncrementCol);
 	}
 
 	public List<Table> getAllSlaves() {
