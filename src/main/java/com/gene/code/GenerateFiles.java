@@ -25,71 +25,71 @@ import java.util.Set;
  *
  */
 public class GenerateFiles {
+	
+	private static List<Table> tables = TableHandler.getTables();
+	//映射SQL数据类型和Java数据类型
+	private static Map<String, String> typeMap = new HashMap<>();
+	//映射SQL数据类型和Java数据类型(resultMap用到)
+	private static Map<String, String> fullNameTypeMap = new HashMap<>();
+	//映射Java数据类型和import声明
+	private static Map<String, String> typeImportMap = new HashMap<>();
+	static {
+		typeMap.put("CHAR", "String");
+		typeMap.put("VARCHAR", "String");
+		typeMap.put("VARCHAR2", "String");
+		typeMap.put("NVARCHAR", "String");
+		typeMap.put("BLOB", "Byte[]");
+		typeMap.put("CLOB", "String");
+		typeMap.put("TEXT", "String");
+		typeMap.put("BIT", "Boolean");
+		typeMap.put("BOOL", "Boolean");
+		typeMap.put("TINYINT", "Integer");
+		typeMap.put("SMALLINT", "Integer");
+		typeMap.put("MEDIUMINT", "Integer");
+		typeMap.put("INTEGER", "Integer");
+		typeMap.put("INT", "Integer");
+		typeMap.put("BIGINT", "Long");
+		typeMap.put("REAL", "BigDecimal");
+		typeMap.put("DOUBLE", "Double");
+		typeMap.put("FLOAT", "Float");
+		typeMap.put("DECIMAL", "BigDecimal");
+		typeMap.put("NUMERIC", "BigDecimal");
+		typeMap.put("DATE", "Date");
+		typeMap.put("TIME", "Date");
+		typeMap.put("YEAR", "Date");
+		typeMap.put("DATETIME", "Date");
+		typeMap.put("TIMESTAMP", "Date");
+		typeMap.put("INET", "String");
+		
+		fullNameTypeMap.put("CHAR", "java.lang.String");
+		fullNameTypeMap.put("VARCHAR", "java.lang.String");
+		fullNameTypeMap.put("VARCHAR2", "java.lang.String");
+		fullNameTypeMap.put("NVARCHAR", "java.lang.String");
+		fullNameTypeMap.put("BLOB", "java.lang.Byte");
+		fullNameTypeMap.put("TEXT", "java.lang.String");
+		fullNameTypeMap.put("BIT", "java.lang.Boolean");
+		fullNameTypeMap.put("BOOL", "java.lang.Boolean");
+		fullNameTypeMap.put("TINYINT", "java.lang.Integer");
+		fullNameTypeMap.put("SMALLINT", "java.lang.Integer");
+		fullNameTypeMap.put("MEDIUMINT", "java.lang.Integer");
+		fullNameTypeMap.put("INTEGER", "java.lang.Integer");
+		fullNameTypeMap.put("INT", "java.lang.Integer");
+		fullNameTypeMap.put("BIGINT", "java.lang.Long");
+		fullNameTypeMap.put("REAL", "java.math.BigDecimal");
+		fullNameTypeMap.put("DOUBLE", "java.lang.Double");
+		fullNameTypeMap.put("FLOAT", "java.lang.Float");
+		fullNameTypeMap.put("DECIMAL", "java.math.BigDecimal");
+		fullNameTypeMap.put("NUMERIC", "java.math.BigDecimal");
+		fullNameTypeMap.put("DATE", "java.util.Date");
+		fullNameTypeMap.put("TIME", "java.util.Date");
+		fullNameTypeMap.put("YEAR", "java.util.Date");
+		fullNameTypeMap.put("DATETIME", "java.util.Date");
+		fullNameTypeMap.put("TIMESTAMP", "java.util.Date");
+		fullNameTypeMap.put("INET", "java.lang.String");
 
-    private static List<Table> tables = TableHandler.getTables();
-    //映射SQL数据类型和Java数据类型
-    private static Map<String, String> typeMap = new HashMap<>();
-    //映射SQL数据类型和Java数据类型(resultMap用到)
-    private static Map<String, String> fullNameTypeMap = new HashMap<>();
-    //映射Java数据类型和import声明
-    private static Map<String, String> typeImportMap = new HashMap<>();
-    static {
-        typeMap.put("CHAR", "String");
-        typeMap.put("VARCHAR", "String");
-        typeMap.put("VARCHAR2", "String");
-        typeMap.put("NVARCHAR", "String");
-        typeMap.put("BLOB", "Byte[]");
-        typeMap.put("CLOB", "String");
-        typeMap.put("TEXT", "String");
-        typeMap.put("BIT", "Boolean");
-        typeMap.put("BOOL", "Boolean");
-        typeMap.put("TINYINT", "Integer");
-        typeMap.put("SMALLINT", "Integer");
-        typeMap.put("MEDIUMINT", "Integer");
-        typeMap.put("INTEGER", "Integer");
-        typeMap.put("INT", "Integer");
-        typeMap.put("BIGINT", "Long");
-        typeMap.put("REAL", "BigDecimal");
-        typeMap.put("DOUBLE", "Double");
-        typeMap.put("FLOAT", "Float");
-        typeMap.put("DECIMAL", "BigDecimal");
-        typeMap.put("NUMERIC", "BigDecimal");
-        typeMap.put("DATE", "Date");
-        typeMap.put("TIME", "Date");
-        typeMap.put("YEAR", "Date");
-        typeMap.put("DATETIME", "Date");
-        typeMap.put("TIMESTAMP", "Date");
-        typeMap.put("INET", "String");
-
-        fullNameTypeMap.put("CHAR", "java.lang.String");
-        fullNameTypeMap.put("VARCHAR", "java.lang.String");
-        fullNameTypeMap.put("VARCHAR2", "java.lang.String");
-        fullNameTypeMap.put("NVARCHAR", "java.lang.String");
-        fullNameTypeMap.put("BLOB", "java.lang.Byte");
-        fullNameTypeMap.put("TEXT", "java.lang.String");
-        fullNameTypeMap.put("BIT", "java.lang.Boolean");
-        fullNameTypeMap.put("BOOL", "java.lang.Boolean");
-        fullNameTypeMap.put("TINYINT", "java.lang.Integer");
-        fullNameTypeMap.put("SMALLINT", "java.lang.Integer");
-        fullNameTypeMap.put("MEDIUMINT", "java.lang.Integer");
-        fullNameTypeMap.put("INTEGER", "java.lang.Integer");
-        fullNameTypeMap.put("INT", "java.lang.Integer");
-        fullNameTypeMap.put("BIGINT", "java.lang.Long");
-        fullNameTypeMap.put("REAL", "java.math.BigDecimal");
-        fullNameTypeMap.put("DOUBLE", "java.lang.Double");
-        fullNameTypeMap.put("FLOAT", "java.lang.Float");
-        fullNameTypeMap.put("DECIMAL", "java.math.BigDecimal");
-        fullNameTypeMap.put("NUMERIC", "java.math.BigDecimal");
-        fullNameTypeMap.put("DATE", "java.util.Date");
-        fullNameTypeMap.put("TIME", "java.util.Date");
-        fullNameTypeMap.put("YEAR", "java.util.Date");
-        fullNameTypeMap.put("DATETIME", "java.util.Date");
-        fullNameTypeMap.put("TIMESTAMP", "java.util.Date");
-        fullNameTypeMap.put("INET", "java.lang.String");
-
-        typeImportMap.put("BigDecimal", "import java.math.BigDecimal;");
-        typeImportMap.put("Date", "import java.util.Date;");
-    }
+		typeImportMap.put("BigDecimal", "import java.math.BigDecimal;");
+		typeImportMap.put("Date", "import java.util.Date;");
+	}
 
 	private static String removeSuffix;
 	private static String queryFullName;
@@ -137,14 +137,14 @@ public class GenerateFiles {
 	private static String activeCode;
 	private static String need;
 	private static List<String> needs;
-	private static boolean needSet = false;
-	private static boolean needAdd = false;
-	private static boolean needUpdate = false;
-	private static boolean needList = false;
-	private static boolean needGetById = false;
-	private static boolean needUpdateActive = false;
-	private static boolean needDelete = false;
-	private static boolean needBatchDelete = false;
+	private static boolean needSet;
+	private static boolean needAdd;
+	private static boolean needUpdate;
+	private static boolean needList;
+	private static boolean needGetById;
+	private static boolean needUpdateActive;
+	private static boolean needDelete;
+	private static boolean needBatchDelete;
 	static {
 		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("db.properties")) {
 			Properties prop = new Properties();
@@ -248,85 +248,85 @@ public class GenerateFiles {
 		needBatchDelete = needs.contains("batchDelete");
 	}
 
-    public static void main(String[] args) {
-        try {
-            Properties config = DBUtils.getConfigs();
-            String path = config.getProperty("path");
-            String packageName = config.getProperty("package");
-            generate(path, packageName);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
+	public static void main(String[] args) {
+		try {
+			Properties config = DBUtils.getConfigs();
+			String path = config.getProperty("path");
+			String packageName = config.getProperty("package");
+			generate(path, packageName);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private static void generate(String path, String packageName) throws IOException {
+		File pathFile = new File(path.replaceAll("/{2,}", "/"));
+		
+		StringBuilder builder = new StringBuilder();
+		builder.append(path);
+		if (pathFile.exists()) {
+			int i = 1;
+			do {
+				i++;
+				if (builder.lastIndexOf("_") != -1 && builder.substring(builder.lastIndexOf("_") + 1).matches("[\\d]+")) {
+					builder.delete(builder.lastIndexOf("_"), builder.length());
+				}
+				builder.append('_').append(i);
+				pathFile = new File(builder.toString());
+			} while (pathFile.exists());
+		}
+		
+		String xmlPath = builder.toString();
+		
+		//拼接包名路径
+		builder.append('/').append(packageName.replace('.', '/'));
+		String finalParentPath = builder.toString();
+		
+		generateEntity(finalParentPath, packageName, tables);
+		generateXmlMappers(xmlPath, packageName);
+		generateMapper(finalParentPath, packageName);
+		generateIService(finalParentPath, packageName);
+		generateService(finalParentPath, packageName);
+		generateController(finalParentPath, packageName);
+	}
+	
+	/**
+	 * 生成entity实体类文件
+	 */
+	private static void generateEntity(String parentPath, String packageName, List<Table> tables) throws IOException {
+		for (Table table : tables) {
+			String tableName = table.getTableName();
+			List<Table> slaveTables = table.getAllSlaves();
 
-    private static void generate(String path, String packageName) throws IOException {
-        File pathFile = new File(path.replaceAll("/{2,}", "/"));
-
-        StringBuilder builder = new StringBuilder();
-        builder.append(path);
-        if (pathFile.exists()) {
-            int i = 1;
-            do {
-                i++;
-                if (builder.lastIndexOf("_") != -1 && builder.substring(builder.lastIndexOf("_") + 1).matches("[\\d]+")) {
-                    builder.delete(builder.lastIndexOf("_"), builder.length());
-                }
-                builder.append('_').append(i);
-                pathFile = new File(builder.toString());
-            } while (pathFile.exists());
-        }
-
-        String xmlPath = builder.toString();
-
-        //拼接包名路径
-        builder.append('/').append(packageName.replace('.', '/'));
-        String finalParentPath = builder.toString();
-
-        generateEntity(finalParentPath, packageName, tables);
-        generateXmlMappers(xmlPath, packageName);
-        generateMapper(finalParentPath, packageName);
-        generateIService(finalParentPath, packageName);
-        generateService(finalParentPath, packageName);
-        generateController(finalParentPath, packageName);
-    }
-
-    /**
-     * 生成entity实体类文件
-     */
-    private static void generateEntity(String parentPath, String packageName, List<Table> tables) throws IOException {
-        for (Table table : tables) {
-            String tableName = table.getTableName();
-            List<Table> slaveTables = table.getAllSlaves();
-
-            String entityName;
-            entityName = getEntityName(tableName);
-
-            File f = new File(parentPath + "/entity");
-            if (!f.exists()) {
-                f.mkdirs();
-            }
-            String fileName = parentPath + "/entity/" + entityName + ".java";
-            File entity = new File(fileName);
-            entity.createNewFile();
-            try (
-                    BufferedWriter bw = new BufferedWriter(
-                            new OutputStreamWriter(
-                                    new FileOutputStream(fileName), "utf-8"));
-            ) {
-                StringBuilder sbBeforeClass = new StringBuilder();
-                sbBeforeClass.append("package ").append(packageName).append(".entity;\n\n");
-                sbBeforeClass.append("import lombok.Data;\n");
-                if (!slaveTables.isEmpty()) {
-                    sbBeforeClass.append("import java.util.List;\n");
-                }
-
-                StringBuilder sbAfterClass = new StringBuilder();
-                sbAfterClass.append("@Data\n");
-                sbAfterClass.append("public class ").append(entityName).append(" {\n");
-                List<Column> fields = table.getAllColumns();
-                for (Column column : fields) {
-                    String fieldName = underscoreCaseToCamelCase(column.getColumnName());
-                    String fieldType = typeMap.get(column.getType());
+			String entityName;
+			entityName = getEntityName(tableName);
+			
+			File f = new File(parentPath + "/entity");
+			if (!f.exists()) {
+				f.mkdirs();
+			}
+			String fileName = parentPath + "/entity/" + entityName + ".java";
+			File entity = new File(fileName);
+			entity.createNewFile();
+			try (
+					BufferedWriter bw = new BufferedWriter(
+							new OutputStreamWriter(
+									new FileOutputStream(fileName), "utf-8"));
+			) {
+				StringBuilder sbBeforeClass = new StringBuilder();
+				sbBeforeClass.append("package ").append(packageName).append(".entity;\n\n");
+				sbBeforeClass.append("import lombok.Data;\n");
+				if (!slaveTables.isEmpty()) {
+					sbBeforeClass.append("import java.util.List;\n");
+				}
+				
+				StringBuilder sbAfterClass = new StringBuilder();
+				sbAfterClass.append("@Data\n");
+				sbAfterClass.append("public class ").append(entityName).append(" {\n");
+				List<Column> fields = table.getAllColumns();
+				for (Column column : fields) {
+					String fieldName = underscoreCaseToCamelCase(column.getColumnName());
+					String fieldType = typeMap.get(column.getType());
 
 					switch (fieldType) {
 						case "Date":
@@ -376,14 +376,14 @@ public class GenerateFiles {
 		return toTitleCase(underscoreCaseToCamelCase(finalName));
 	}
 
-    /**
-     * 生成mapper接口文件
-     */
-    private static void generateMapper(String parentPath, String packageName) throws IOException {
-        for (Table table : tables) {
-            String tableName = table.getTableName();
-            String entityName = getEntityName(tableName);
-            String mapperName = entityName + "Mapper";
+	/**
+	 * 生成mapper接口文件
+	 */
+	private static void generateMapper(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String tableName = table.getTableName();
+			String entityName = getEntityName(tableName);
+			String mapperName = entityName + "Mapper";
 
 			List<Table> slaves = table.getAllSlaves();
 			boolean hasSlave = slaves != null && !slaves.isEmpty();
@@ -399,31 +399,31 @@ public class GenerateFiles {
 				builder.append(PaginatorHandler.getImports(paginator)).append("\n");
 			}
 
-            builder.append("public interface ").append(mapperName).append(" {\n\n");
+			builder.append("public interface ").append(mapperName).append(" {\n\n");
 
 			if (needAdd) {
 				builder.append("\tInteger add(").append(entityName).append(" entity);\n\n");
 			}
 
-            String keyName = null;
-            String idName = null;
-            String camelKeyName = null;
-            String byWhat = null;
-            String keyType = null;
-            List<PrimaryKey> keys = table.getAllPrimaryKeys();
+			String keyName = null;
+			String idName = null;
+			String camelKeyName = null;
+			String byWhat = null;
+			String keyType = null;
+			List<PrimaryKey> keys = table.getAllPrimaryKeys();
 
-            if (keys != null && !keys.isEmpty()) {
-                PrimaryKey key = keys.get(0);
-                keyName = key.getPkName();
-                camelKeyName = underscoreCaseToCamelCase(keyName);
-                if (keyName.endsWith("id")) {
-                    idName = "id";
-                } else {
-                    idName = camelKeyName;
-                }
-                byWhat = toTitleCase(idName);
-                keyType = typeMap.get(key.getPkType());
-            }
+			if (keys != null && !keys.isEmpty()) {
+				PrimaryKey key = keys.get(0);
+				keyName = key.getPkName();
+				camelKeyName = underscoreCaseToCamelCase(keyName);
+				if (keyName.endsWith("id")) {
+					idName = "id";
+				} else {
+					idName = camelKeyName;
+				}
+				byWhat = toTitleCase(idName);
+				keyType = typeMap.get(key.getPkType());
+			}
 
 			if (keyName != null && needUpdate) {
 				builder.append("\tInteger " + "update(").append(entityName).append(" entity);\n\n");
@@ -557,13 +557,13 @@ public class GenerateFiles {
 					keyType = key.getPkType();
 				}
 
-                List<Column> columns = table.getAllColumns();
-                Map<String, String> columnMap = new LinkedHashMap<>(columns.size());
-                for (Column column : columns) {
-                    String columnName = column.getColumnName();
-                    String fieldName = underscoreCaseToCamelCase(columnName);
-                    columnMap.put(columnName, fieldName);
-                }
+				List<Column> columns = table.getAllColumns();
+				Map<String, String> columnMap = new LinkedHashMap<>(columns.size());
+				for (Column column : columns) {
+					String columnName = column.getColumnName();
+					String fieldName = underscoreCaseToCamelCase(columnName);
+					columnMap.put(columnName, fieldName);
+				}
 
 				List<Table> slaves = table.getAllSlaves();
 				boolean hasSlaves = slaves != null && !slaves.isEmpty();
@@ -670,15 +670,15 @@ public class GenerateFiles {
 						}
 						String fieldName = entry.getValue();
 
-                        builder.append("\t\t\t<if test=\"").append(fieldName).append(" != null\">\n");
-                        builder.append("\t\t\t\t").append(columnName).append(" = #{").append(fieldName).append("},\n");
-                        builder.append("\t\t\t</if>\n");
-                    }
-                    builder.deleteCharAt(builder.lastIndexOf(","));
-                    builder.append("\t\t</set>\n");
-                    builder.append("\t\tWHERE ").append(keyName).append(" = #{").append(camelKeyName).append("}\n");
-                    builder.append("\t</update>\n\n");
-                }
+						builder.append("\t\t\t<if test=\"").append(fieldName).append(" != null\">\n");
+						builder.append("\t\t\t\t").append(columnName).append(" = #{").append(fieldName).append("},\n");
+						builder.append("\t\t\t</if>\n");
+					}
+					builder.deleteCharAt(builder.lastIndexOf(","));
+					builder.append("\t\t</set>\n");
+					builder.append("\t\tWHERE ").append(keyName).append(" = #{").append(camelKeyName).append("}\n");
+					builder.append("\t</update>\n\n");
+				}
 
 				//list
 				if (needList) {
@@ -799,13 +799,13 @@ public class GenerateFiles {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
-			String serviceName = entityName + "Service";
+			String serviceName = "I" + entityName + "Service";
 			
 			File f = new File(parentPath + "/service/inter");
 			if (!f.exists()) {
 				f.mkdirs();
 			}
-			String fileName = parentPath + "/service/inter/I" + serviceName + ".java";
+			String fileName = parentPath + "/service/inter/" + serviceName + ".java";
 			File service = new File(fileName);
 			service.createNewFile();
 			try (
@@ -814,41 +814,41 @@ public class GenerateFiles {
 									new FileOutputStream(fileName), StandardCharsets.UTF_8))
 			) {
 				StringBuilder builder = new StringBuilder();
-				builder.append("package ").append(packageName).append(".service;\n\n");
+				builder.append("package ").append(packageName).append(".service.inter;\n\n");
 				builder.append("import java.util.List;\n");
 				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 				builder.append("import ").append(queryFullName).append(";\n");
 				builder.append("import ").append(responseResultFullName).append(";\n\n");
-				builder.append("public interface I").append(serviceName).append(" {\n\n");
+				builder.append("public interface ").append(serviceName).append(" {\n\n");
 
-                String rrGenericName = responseResultName;
-                if (rrGeneric) {
-                    rrGenericName = rrGenericName + "<" + entityName + ">";
-                }
-                String lrrGenericName = listResponseResultName;
-                if (listRrGeneric) {
-                    lrrGenericName = lrrGenericName + "<" + entityName + ">";
-                }
+				String rrGenericName = responseResultName;
+				if (rrGeneric) {
+					rrGenericName = rrGenericName + "<" + entityName + ">";
+				}
+				String lrrGenericName = listResponseResultName;
+				if (listRrGeneric) {
+					lrrGenericName = lrrGenericName + "<" + entityName + ">";
+				}
 
-                String keyName = null;
-                String idName = null;
-                String camelKeyName = null;
-                String byWhat = null;
-                String keyType = null;
-                List<PrimaryKey> keys = table.getAllPrimaryKeys();
+				String keyName = null;
+				String idName = null;
+				String camelKeyName = null;
+				String byWhat = null;
+				String keyType = null;
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 
-                if (keys != null && !keys.isEmpty()) {
-                    PrimaryKey key = keys.get(0);
-                    keyName = key.getPkName();
-                    camelKeyName = underscoreCaseToCamelCase(keyName);
-                    if (keyName.endsWith("id")) {
-                        idName = "id";
-                    } else {
-                        idName = camelKeyName;
-                    }
-                    byWhat = toTitleCase(idName);
-                    keyType = typeMap.get(key.getPkType());
-                }
+				if (keys != null && !keys.isEmpty()) {
+					PrimaryKey key = keys.get(0);
+					keyName = key.getPkName();
+					camelKeyName = underscoreCaseToCamelCase(keyName);
+					if (keyName.endsWith("id")) {
+						idName = "id";
+					} else {
+						idName = camelKeyName;
+					}
+					byWhat = toTitleCase(idName);
+					keyType = typeMap.get(key.getPkType());
+				}
 
 				if (keyName != null && combineAddUpdate && needSet) {
 					builder.append("\t").append(rrGenericName).append(" set(").append(entityName).append(" entity);\n\n");
@@ -891,27 +891,28 @@ public class GenerateFiles {
 					}
 				}
 
-                builder.append("}\n");
-
-                bw.write(builder.toString());
-                bw.flush();
-            } catch (IOException e) {
-                throw new IOException(e);
-            }
-        }
-    }
-
-    /**
-     * 生成service文件
-     */
-    private static void generateService(String parentPath, String packageName) throws IOException {
-        for (Table table : tables) {
-            String tableName = table.getTableName();
-            String entityName = getEntityName(tableName);
-            String entityVarName = toContentCase(entityName);
-            String serviceName = entityName + "ServiceImpl";
-            String mapperName = entityName + "Mapper";
-            String mapperVarName = toContentCase(mapperName);
+				builder.append("}\n");
+				
+				bw.write(builder.toString());
+				bw.flush();
+			} catch (IOException e) {
+				throw new IOException(e);
+			}
+		}
+	}
+	
+	/**
+	 * 生成service文件
+	 */
+	private static void generateService(String parentPath, String packageName) throws IOException {
+		for (Table table : tables) {
+			String tableName = table.getTableName();
+			String entityName = getEntityName(tableName);
+			String entityVarName = toContentCase(entityName);
+			String iServiceName = "I" + entityName + "Service";
+			String serviceName = entityName + "ServiceImpl";
+			String mapperName = entityName + "Mapper";
+			String mapperVarName = toContentCase(mapperName);
 
 			List<Table> slaves = table.getAllSlaves();
 			boolean hasSlave = slaves != null && !slaves.isEmpty();
@@ -935,21 +936,21 @@ public class GenerateFiles {
 				String keyType = null;
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 
-                if (keys != null && !keys.isEmpty()) {
-                    PrimaryKey key = keys.get(0);
-                    keyName = key.getPkName();
-                    camelKeyName = underscoreCaseToCamelCase(keyName);
-                    if (keyName.endsWith("id")) {
-                        idName = "id";
-                    } else {
-                        idName = camelKeyName;
-                    }
-                    byWhat = toTitleCase(idName);
-                    keyType = typeMap.get(key.getPkType());
-                }
+				if (keys != null && !keys.isEmpty()) {
+					PrimaryKey key = keys.get(0);
+					keyName = key.getPkName();
+					camelKeyName = underscoreCaseToCamelCase(keyName);
+					if (keyName.endsWith("id")) {
+						idName = "id";
+					} else {
+						idName = camelKeyName;
+					}
+					byWhat = toTitleCase(idName);
+					keyType = typeMap.get(key.getPkType());
+				}
 
 				StringBuilder builder = new StringBuilder();
-				builder.append("package ").append(packageName).append(".service;\n\n");
+				builder.append("package ").append(packageName).append(".service.impl;\n\n");
 				
 				builder.append("import java.util.List;\n");
 				builder.append("import java.util.Date;\n");
@@ -957,6 +958,7 @@ public class GenerateFiles {
 				builder.append("import javax.annotation.Resource;\n");
 				builder.append("import org.springframework.transaction.annotation.Transactional;\n");
 				builder.append(PaginatorHandler.getImports(paginator));
+				builder.append("import ").append(packageName).append(".service.inter.").append(iServiceName).append(";\n");
 				builder.append("import ").append(packageName).append(".mapper.").append(entityName).append("Mapper;\n");
 				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 				builder.append("import ").append(stringUtilFullName).append(";\n");
@@ -967,38 +969,41 @@ public class GenerateFiles {
 				builder.append("import ").append(queryFullName).append(";\n\n");
 				
 				builder.append("@Service\n");
-				builder.append("public class ").append(serviceName).append(" implements I").append(serviceName).append(" {\n\n");
+				builder.append("public class ").append(serviceName).append(" implements ").append(iServiceName).append(" {\n\n");
 
-                String rrGenericName = responseResultName;
-                if (rrGeneric) {
-                    rrGenericName = rrGenericName + "<" + entityName + ">";
-                }
-                String lrrGenericName = listResponseResultName;
-                if (listRrGeneric) {
-                    lrrGenericName = lrrGenericName + "<" + entityName + ">";
-                }
+				String rrGenericName = responseResultName;
+				if (rrGeneric) {
+					rrGenericName = rrGenericName + "<" + entityName + ">";
+				}
+				String lrrGenericName = listResponseResultName;
+				if (listRrGeneric) {
+					lrrGenericName = lrrGenericName + "<" + entityName + ">";
+				}
 
 				builder.append("\t@Resource\n");
 				builder.append("\tprivate ").append(mapperName).append(" ").append(mapperVarName).append(";\n\n");
 
-                if (keyName != null && combineAddUpdate) {
-                    builder.append("\t@Override\n");
-                    builder.append("\tpublic ").append(rrGenericName).append(" set(").append(entityName).append(" entity) {\n");
-                    builder.append("\t\tif (entity == null) {\n");
-                    builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少参数\");\n");
-                    builder.append("\t\t}\n");
-                    if ("String".equals(keyType)) {
-                        builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty)
-                                .append('(').append("entity.get").append(toTitleCase(camelKeyName)).append("())").append(") {\n");
-                    } else {
-                        builder.append("\t\tif (").append("entity.get").append(toTitleCase(camelKeyName)).append("() == null").append(") {\n");
-                    }
-                    builder.append("\t\t\treturn this.add(entity);\n");
-                    builder.append("\t\t} else {\n");
-                    builder.append("\t\t\treturn this.update(entity);\n");
-                    builder.append("\t\t}\n");
-                    builder.append("\t}\n\n");
-                }
+				if (keyName != null && combineAddUpdate && needSet) {
+					if (hasSlave) {
+						builder.append("\t@Transactional\n");
+					}
+					builder.append("\t@Override\n");
+					builder.append("\tpublic ").append(rrGenericName).append(" set(").append(entityName).append(" entity) {\n");
+					builder.append("\t\tif (entity == null) {\n");
+					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少参数\");\n");
+					builder.append("\t\t}\n");
+					if ("String".equals(keyType)) {
+						builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty)
+								.append('(').append("entity.get").append(toTitleCase(camelKeyName)).append("())").append(") {\n");
+					} else {
+						builder.append("\t\tif (").append("entity.get").append(toTitleCase(camelKeyName)).append("() == null").append(") {\n");
+					}
+					builder.append("\t\t\treturn this.add(entity);\n");
+					builder.append("\t\t} else {\n");
+					builder.append("\t\t\treturn this.update(entity);\n");
+					builder.append("\t\t}\n");
+					builder.append("\t}\n\n");
+				}
 
 				if (needAdd) {
 					if (hasSlave) {
@@ -1007,7 +1012,7 @@ public class GenerateFiles {
 					builder.append("\t@Override\n");
 					builder.append("\tpublic ").append(rrGenericName).append(" add(").append(entityName).append(" entity) {\n");
 					builder.append("\t\tString s = this.checkParam(entity);\n");
-					builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
+					builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
 					builder.append("\t\t}\n");
 					if ("String".equals(keyType)) {
@@ -1063,7 +1068,7 @@ public class GenerateFiles {
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少id\");\n");
 					builder.append("\t\t}\n");
 					builder.append("\t\tString s = this.checkParam(entity);\n");
-					builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
+					builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
 					builder.append("\t\t}\n");
 					if (!"".equals(updatedDate)) {
@@ -1299,38 +1304,38 @@ public class GenerateFiles {
 
 				builder.append("\tprivate Logger logger = LoggerFactory.getLogger(this.getClass());\n\n");
 
-                String rrGenericName = responseResultName;
-                if (rrGeneric) {
-                    rrGenericName = rrGenericName + "<" + entityName + ">";
-                }
-                String lrrGenericName = listResponseResultName;
-                if (listRrGeneric) {
-                    lrrGenericName = lrrGenericName + "<" + entityName + ">";
-                }
-                String consumeStr = "";
-                if ("json".equalsIgnoreCase(consumes)) {
-                    consumeStr = "@RequestBody ";
-                }
+				String rrGenericName = responseResultName;
+				if (rrGeneric) {
+					rrGenericName = rrGenericName + "<" + entityName + ">";
+				}
+				String lrrGenericName = listResponseResultName;
+				if (listRrGeneric) {
+					lrrGenericName = lrrGenericName + "<" + entityName + ">";
+				}
+				String consumeStr = "";
+				if ("json".equalsIgnoreCase(consumes)) {
+					consumeStr = "@RequestBody ";
+				}
 
-                String keyName = null;
-                String idName = null;
-                String camelKeyName = null;
-                String byWhat = null;
-                String keyType = null;
-                List<PrimaryKey> keys = table.getAllPrimaryKeys();
+				String keyName = null;
+				String idName = null;
+				String camelKeyName = null;
+				String byWhat = null;
+				String keyType = null;
+				List<PrimaryKey> keys = table.getAllPrimaryKeys();
 
-                if (keys != null && !keys.isEmpty()) {
-                    PrimaryKey key = keys.get(0);
-                    keyName = key.getPkName();
-                    camelKeyName = underscoreCaseToCamelCase(keyName);
-                    if (keyName.endsWith("id")) {
-                        idName = "id";
-                    } else {
-                        idName = camelKeyName;
-                    }
-                    byWhat = toTitleCase(idName);
-                    keyType = typeMap.get(key.getPkType());
-                }
+				if (keys != null && !keys.isEmpty()) {
+					PrimaryKey key = keys.get(0);
+					keyName = key.getPkName();
+					camelKeyName = underscoreCaseToCamelCase(keyName);
+					if (keyName.endsWith("id")) {
+						idName = "id";
+					} else {
+						idName = camelKeyName;
+					}
+					byWhat = toTitleCase(idName);
+					keyType = typeMap.get(key.getPkType());
+				}
 
 				if (keyName != null && combineAddUpdate && needSet) {
 					builder.append("\t@RequestMapping(value = \"/set\", method = RequestMethod.POST)\n");
@@ -1480,59 +1485,56 @@ public class GenerateFiles {
 			}
 		}
 	}
+	
+	/**
+	 * 首字母变大写
+	 * @return 首字母大写的字符串
+	 */
+	private static String toTitleCase(String str) {
+		char[] chs = str.toCharArray();
+		if (chs[0] >= 97 && chs[0] <= 122) {
+			chs[0] -= 32;
+		}
+		return String.valueOf(chs);
+	}
+	
+	private static String toContentCase(String str) {
+		char[] chs = str.toCharArray();
+		if (chs[0] >= 65 && chs[0] <= 90) {
+			chs[0] += 32;
+		}
+		return String.valueOf(chs);
+	}
 
-    /**
-     * 首字母变大写
-     * @return 首字母大写的字符串
-     */
-    private static String toTitleCase(String str) {
-        char[] chs = str.toCharArray();
-        if (chs[0] >= 97 && chs[0] <= 122) {
-            chs[0] -= 32;
-        }
-        return String.valueOf(chs);
-    }
+	private static String getVarNameByCamelCase(String str) {
+		StringBuilder builder = new StringBuilder();
+		char[] chs = str.toCharArray();
+		for (char ch : chs) {
+			if (ch >= 65 && ch <= 90) {
+				ch += 32;
+				builder.append(ch);
+			}
+		}
+		return builder.toString();
+	}
 
-    private static String toContentCase(String str) {
-        char[] chs = str.toCharArray();
-        if (chs[0] >= 65 && chs[0] <= 90) {
-            chs[0] += 32;
-        }
-        return String.valueOf(chs);
-    }
-
-    private static String getVarNameByCamelCase(String str) {
-        StringBuilder builder = new StringBuilder();
-        char[] chs = str.toCharArray();
-        for (char ch : chs) {
-            if (ch >= 65 && ch <= 90) {
-                ch += 32;
-                builder.append(ch);
-            }
-        }
-        return builder.toString();
-    }
-
-    public static String underscoreCaseToCamelCase(String str) {
-        if (str == null || "".equals(str)) {
-            return str;
-        }
-
-        String[] data = str.split("[_]+");
-        if (data.length > 1) {
-            StringBuilder sb = new StringBuilder();
-            sb.append(data[0]);
-            for (int i = 1; i < data.length; i++) {
-                data[i] = toTitleCase(data[i]);
-                sb.append(data[i]);
-            }
-            return sb.toString();
-        } else {
-            return str;
-        }
-    }
-
-
+	public static String underscoreCaseToCamelCase(String str) {
+		if (str == null || "".equals(str)) {
+			return str;
+		}
+		String[] data = str.split("[_]+");
+		if (data.length > 1) {
+			StringBuilder sb = new StringBuilder();
+			sb.append(data[0]);
+			for (int i = 1; i < data.length; i++) {
+				data[i] = toTitleCase(data[i]);
+				sb.append(data[i]);
+			}
+			return sb.toString();
+		} else {
+			return str;
+		}
+	}
 
 	public static String camelCaseToUnderscoreCase(String str) {
 		if (str == null || "".equals(str)) {
