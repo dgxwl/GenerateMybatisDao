@@ -20,7 +20,7 @@ import java.util.Set;
  *
  */
 public class TableHandler {
-
+	
 	private static List<Table> tables = new ArrayList<>();  //所有主表
 	private static List<String> entityNames = new ArrayList<>();  //记下含有下划线的表名转化后的实体名
 
@@ -32,7 +32,7 @@ public class TableHandler {
 
 			Map<String, Table> tableNameMap = new HashMap<>();
 			Map<String, String> slaveMap = new HashMap<>();
-
+			
 			String tablesStr = config.getProperty("tables");
 			if (tablesStr == null) {
 				tablesStr = "";
@@ -40,19 +40,19 @@ public class TableHandler {
 			Set<String> tableNameSet = new HashSet<>(Arrays.asList(tablesStr.split("[\\s]*[,，][\\s]*")));
 			tableNameSet.remove("");
 
-			String slaveTableStr = config.getProperty("slave_tables");
-			if (slaveTableStr == null) {
-				slaveTableStr = "";
+			String oneToMany = config.getProperty("one_to_many");
+			if (oneToMany == null) {
+				oneToMany = "";
 			}
 
-			if (!slaveTableStr.equals("")) {
-				String[] pairs = slaveTableStr.split("[\\s]*[,，][\\s]*");
+			if (!oneToMany.equals("")) {
+				String[] pairs = oneToMany.split("[\\s]*[,，][\\s]*");
 				for (String pair : pairs) {
 					String[] masterAndSlave = pair.split(":");
 					slaveMap.put(masterAndSlave[1], masterAndSlave[0]);
 				}
 			}
-
+			
 			//获取数据库元数据
 			DatabaseMetaData databaseMetaData = conn.getMetaData();
 
@@ -78,7 +78,7 @@ public class TableHandler {
 				ResultSet pkSet = databaseMetaData.getPrimaryKeys(null, null, tableName);
 				while (pkSet.next()) {
 					PrimaryKey primaryKey = new PrimaryKey();
-
+					
 					String pkName = pkSet.getString("COLUMN_NAME");
 					primaryKey.setPkName(pkName);
 					int keySeq = pkSet.getInt("KEY_SEQ");
@@ -107,7 +107,7 @@ public class TableHandler {
 			DBUtils.closeConnection(conn);
 		}
 	}
-
+	
 	/**
 	 * 获得处理好的所有数据主表元数据
 	 * @return tables 所有数据主表元数据
