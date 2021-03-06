@@ -1,6 +1,6 @@
-package com.gene.code.columnhandler.strategy;
+package com.github.dgxwl.base.columnhandler.strategy;
 
-import com.gene.code.Table;
+import com.github.dgxwl.base.Table;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;

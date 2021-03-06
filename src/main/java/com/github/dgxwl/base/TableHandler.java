@@ -1,6 +1,6 @@
-package com.gene.code;
+package com.github.dgxwl.base;
 
-import com.gene.code.columnhandler.ColumnHandler;
+import com.github.dgxwl.base.columnhandler.ColumnHandler;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;

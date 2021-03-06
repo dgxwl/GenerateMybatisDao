@@ -1,4 +1,4 @@
-package com.gene.code;
+package com.github.dgxwl.base;
 
 import java.util.HashMap;
 import java.util.Map;

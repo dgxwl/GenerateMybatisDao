@@ -1,10 +1,10 @@
-package com.gene.code.columnhandler;
+package com.github.dgxwl.base.columnhandler;
 
-import com.gene.code.Column;
-import com.gene.code.Table;
-import com.gene.code.columnhandler.strategy.IColumnHandlerStrategy;
-import com.gene.code.columnhandler.strategy.MySqlStrategy;
-import com.gene.code.columnhandler.strategy.PostgresqlStrategy;
+import com.github.dgxwl.base.Column;
+import com.github.dgxwl.base.Table;
+import com.github.dgxwl.base.columnhandler.strategy.IColumnHandlerStrategy;
+import com.github.dgxwl.base.columnhandler.strategy.MySqlStrategy;
+import com.github.dgxwl.base.columnhandler.strategy.PostgresqlStrategy;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
