@@ -145,7 +145,7 @@ public class GenerateFiles {
 	private static boolean needDelete;
 	private static boolean needBatchDelete;
 	static {
-		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("db.properties")) {
+		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("base.properties")) {
 			Properties prop = new Properties();
 			prop.load(in);
 

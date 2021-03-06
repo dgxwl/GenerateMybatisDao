@@ -20,7 +20,7 @@ public class DBUtils {
 
 	private static Properties config = new Properties();
 	static {
-		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("db.properties")) {
+		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("base.properties")) {
 			config.load(in);
 			
 			driver = config.getProperty("jdbc.driver");
