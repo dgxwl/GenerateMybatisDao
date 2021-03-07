@@ -1,4 +1,4 @@
-package com.github.dgxwl.base;
+package com.github.dgxwl.util;
 
 import org.apache.commons.dbcp.BasicDataSource;
 

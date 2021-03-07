@@ -1,6 +1,9 @@
-package com.github.dgxwl.base;
+package com.github.dgxwl.base.handler;
 
-import com.github.dgxwl.base.columnhandler.ColumnHandler;
+import com.github.dgxwl.util.DBUtils;
+import com.github.dgxwl.base.handler.dbhandler.DBHandler;
+import com.github.dgxwl.base.entity.PrimaryKey;
+import com.github.dgxwl.base.entity.Table;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -72,7 +75,7 @@ public class TableHandler {
 				}
 				
 				//获得该表字段的元数据
-				ColumnHandler.handleColumns(table, conn, databaseMetaData, config.getProperty("jdbc.driver"));
+				DBHandler.handleColumns(table, conn, databaseMetaData);
 
 				//获取主键元数据
 				ResultSet pkSet = databaseMetaData.getPrimaryKeys(null, null, tableName);

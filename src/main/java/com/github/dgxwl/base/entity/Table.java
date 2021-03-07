@@ -1,4 +1,4 @@
-package com.github.dgxwl.base;
+package com.github.dgxwl.base.entity;
 
 import java.util.ArrayList;
 import java.util.HashMap;

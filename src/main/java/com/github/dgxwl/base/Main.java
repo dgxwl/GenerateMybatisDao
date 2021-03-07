@@ -1,5 +1,12 @@
 package com.github.dgxwl.base;
 
+import com.github.dgxwl.base.entity.Column;
+import com.github.dgxwl.base.entity.PrimaryKey;
+import com.github.dgxwl.base.entity.Table;
+import com.github.dgxwl.base.handler.PaginatorHandler;
+import com.github.dgxwl.base.handler.TableHandler;
+import com.github.dgxwl.util.DBUtils;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -23,7 +30,7 @@ import java.util.Set;
  * @author Administrator
  *
  */
-public class GenerateFiles {
+public class Main {
 	
 	private static List<Table> tables = TableHandler.getTables();
 	//映射SQL数据类型和Java数据类型
@@ -128,12 +135,12 @@ public class GenerateFiles {
 	private static String orderType;
 	private static String orderFieldVal;
 	private static String orderTypeVal;
-	private static String createdDate;
-	private static String createdBy;
-	private static String updatedDate;
-	private static String updatedBy;
-	private static String active;
-	private static String activeCode;
+	public static String createdDate;
+	public static String createdBy;
+	public static String updatedDate;
+	public static String updatedBy;
+	public static String active;
+	public static String activeCode;
 	private static String need;
 	private static List<String> needs;
 	private static boolean needSet;

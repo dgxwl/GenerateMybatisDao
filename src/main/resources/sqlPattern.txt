@@ -1,0 +1,54 @@
+CREATE TABLE ${billTableName} (
+${billPkName} ${pkType} PRIMARY KEY,
+${ownerId} ${pkType} ${columnBeforeBillAmount}
+amount numeric(18,2) DEFAULT 0,${columnAfterBillAmount}
+status ${shortIntType} DEFAULT 0,
+pay_date ${dateTimeType},
+created_date ${dateTimeType},
+created_by ${pkType},
+updated_date ${dateTimeType},
+updated_by ${pkType},
+${active} ${shortIntType} DEFAULT ${active_code}
+);
+COMMENT ON TABLE ${billTableName} IS '${billTableComment}实体表';
+COMMENT ON COLUMN ${billPkName} IS '主键';
+COMMENT ON COLUMN ${ownerId} IS '用户id';
+COMMENT ON COLUMN amount IS '应付金额';
+COMMENT ON COLUMN status IS '支付状态';
+COMMENT ON COLUMN pay_date IS '支付成功时间';${billColumnComment}
+
+CREATE TABLE ${billTableName}_line (
+line_id ${pkType} PRIMARY KEY,
+${billPkName} ${pkType},${columnBeforeLineAmount}
+amount numeric(18,2) DEFAULT 0,${columnAfterLineAmount}
+created_date ${dateTimeType},
+created_by ${pkType},
+updated_date ${dateTimeType},
+updated_by ${pkType},
+${active} ${shortIntType} DEFAULT ${active_code}
+);
+COMMENT ON TABLE ${billTableName}_line IS '${billTableComment}明细表';
+COMMENT ON COLUMN line_id IS '主键';
+COMMENT ON COLUMN amount IS '金额';${lineColumnComment}
+
+CREATE TABLE ${billTableName}_payment (
+payment_id ${pkType} PRIMARY KEY,
+${billPkName} ${pkType},${columnBeforePaymentAmount}
+amount numeric(18,2) DEFAULT 0,${columnAfterPaymentAmount}
+method ${shortIntType},
+trade_no varchar(50),
+flow_no varchar(50),
+pay_date ${dateTimeType},
+created_date ${dateTimeType},
+created_by ${pkType},
+updated_date ${dateTimeType},
+updated_by ${pkType},
+${active} ${shortIntType} DEFAULT ${active_code}
+);
+COMMENT ON TABLE ${billTableName}_payment IS '${billTableComment}支付明细表';
+COMMENT ON COLUMN payment_id IS '主键';
+COMMENT ON COLUMN amount IS '支付金额';
+COMMENT ON COLUMN method IS '支付方式';
+COMMENT ON COLUMN trade_no IS '三方支付时我方系统的付款订单号';
+COMMENT ON COLUMN flow_no IS '三方支付流水号';
+COMMENT ON COLUMN pay_date IS '支付成功时间';${paymentColumnComment}

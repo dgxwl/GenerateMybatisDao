@@ -1,19 +1,24 @@
-package com.github.dgxwl.base.columnhandler;
+package com.github.dgxwl.base.handler.dbhandler;
 
-import com.github.dgxwl.base.Column;
-import com.github.dgxwl.base.Table;
-import com.github.dgxwl.base.columnhandler.strategy.IColumnHandlerStrategy;
-import com.github.dgxwl.base.columnhandler.strategy.MySqlStrategy;
-import com.github.dgxwl.base.columnhandler.strategy.PostgresqlStrategy;
+import com.github.dgxwl.base.entity.Column;
+import com.github.dgxwl.util.DBUtils;
+import com.github.dgxwl.base.entity.Table;
+import com.github.dgxwl.base.handler.dbhandler.strategy.IDBStrategy;
+import com.github.dgxwl.base.handler.dbhandler.strategy.MySqlStrategy;
+import com.github.dgxwl.base.handler.dbhandler.strategy.PostgresqlStrategy;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
+import java.util.Properties;
 
-public class ColumnHandler {
+public class DBHandler {
 
-    public static void handleColumns(Table table, Connection conn, DatabaseMetaData databaseMetaData, String driverStr) {
-        IColumnHandlerStrategy strategy = getStrategyByDriver(driverStr);
+    private static Properties configs = DBUtils.getConfigs();
+    private static String driverStr = configs.getProperty("jdbc.driver");
+
+    public static void handleColumns(Table table, Connection conn, DatabaseMetaData databaseMetaData) {
+        IDBStrategy strategy = getStrategyByDriver(driverStr);
         if (strategy == null) {
             throw new IllegalStateException("未知数据库厂商");
         }
@@ -47,7 +52,23 @@ public class ColumnHandler {
         }
     }
 
-    private static IColumnHandlerStrategy getStrategyByDriver(String driverStr) {
+    public static String getShortIntType() {
+        IDBStrategy strategy = getStrategyByDriver(driverStr);
+        if (strategy == null) {
+            throw new IllegalStateException("未知数据库厂商");
+        }
+        return strategy.getShortIntType();
+    }
+
+    public static String getDateTimeType() {
+        IDBStrategy strategy = getStrategyByDriver(driverStr);
+        if (strategy == null) {
+            throw new IllegalStateException("未知数据库厂商");
+        }
+        return strategy.getDateTimeType();
+    }
+
+    private static IDBStrategy getStrategyByDriver(String driverStr) {
         if (driverStr.contains("postgresql")) {
             return new PostgresqlStrategy();
         } else if (driverStr.contains("mysql")) {

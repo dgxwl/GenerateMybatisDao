@@ -1,6 +1,6 @@
-package com.github.dgxwl.base.columnhandler.strategy;
+package com.github.dgxwl.base.handler.dbhandler.strategy;
 
-import com.github.dgxwl.base.Table;
+import com.github.dgxwl.base.entity.Table;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -8,7 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class MySqlStrategy implements IColumnHandlerStrategy {
+public class MySqlStrategy implements IDBStrategy {
 
     @Override
     public ResultSet getColumnMetaDataResultSet(Table table, Connection conn, DatabaseMetaData databaseMetaData) throws SQLException {
@@ -32,5 +32,15 @@ public class MySqlStrategy implements IColumnHandlerStrategy {
             String columnName = rs.getString("COLUMN_NAME");
             table.addAutoIncrementCols(columnName);
         }
+    }
+
+    @Override
+    public String getShortIntType() {
+        return "smallint";
+    }
+
+    @Override
+    public String getDateTimeType() {
+        return "datetime";
     }
 }

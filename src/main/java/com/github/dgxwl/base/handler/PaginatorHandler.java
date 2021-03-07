@@ -1,4 +1,4 @@
-package com.github.dgxwl.base;
+package com.github.dgxwl.base.handler;
 
 import java.util.HashMap;
 import java.util.Map;

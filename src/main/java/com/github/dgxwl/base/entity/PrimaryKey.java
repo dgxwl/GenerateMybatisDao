@@ -1,4 +1,4 @@
-package com.github.dgxwl.base;
+package com.github.dgxwl.base.entity;
 
 /**
  * 主键
