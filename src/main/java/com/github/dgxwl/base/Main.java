@@ -32,7 +32,23 @@ import java.util.Set;
  */
 public class Main {
 	
-	private static List<Table> tables = TableHandler.getTables();
+	private List<Table> tables;
+	private List<String> entityNames;
+	private String tablesStr;
+	private String oneToMany;
+
+	private static String path;
+	private static String packageName;
+	private static String defaultTablesStr;
+	private static String defaultOneToMany;
+	static {
+		Properties config = DBUtils.getConfigs();
+		path = config.getProperty("path");
+		packageName = config.getProperty("package");
+
+		defaultTablesStr = config.getProperty("tables");
+		defaultOneToMany = config.getProperty("one_to_many");
+	}
 	//映射SQL数据类型和Java数据类型
 	private static Map<String, String> typeMap = new HashMap<>();
 	//映射SQL数据类型和Java数据类型(resultMap用到)
@@ -152,7 +168,7 @@ public class Main {
 	private static boolean needDelete;
 	private static boolean needBatchDelete;
 	static {
-		try (InputStream in = DBUtils.class.getClassLoader().getResourceAsStream("base.properties")) {
+		try (InputStream in = Main.class.getClassLoader().getResourceAsStream("base.properties")) {
 			Properties prop = new Properties();
 			prop.load(in);
 
@@ -254,18 +270,25 @@ public class Main {
 		needBatchDelete = needs.contains("batchDelete");
 	}
 
+	public Main(String tablesStr, String oneToMany) {
+		this.tablesStr = tablesStr;
+		this.oneToMany = oneToMany;
+	}
+
 	public static void main(String[] args) {
 		try {
-			Properties config = DBUtils.getConfigs();
-			String path = config.getProperty("path");
-			String packageName = config.getProperty("package");
-			generate(path, packageName);
+			new Main(defaultTablesStr, defaultOneToMany).generate();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
 	
-	private static void generate(String path, String packageName) throws IOException {
+	public void generate() throws IOException {
+		TableHandler tableHandler = new TableHandler();
+		tableHandler.readTables(tablesStr, oneToMany);
+		tables = tableHandler.getTables();
+		entityNames = tableHandler.getEntityNames();
+
 		File pathFile = new File(path.replaceAll("/{2,}", "/"));
 		
 		StringBuilder builder = new StringBuilder();
@@ -299,7 +322,7 @@ public class Main {
 	/**
 	 * 生成entity实体类文件
 	 */
-	private static void generateEntity(String parentPath, String packageName, List<Table> tables) throws IOException {
+	private void generateEntity(String parentPath, String packageName, List<Table> tables) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			List<Table> slaveTables = table.getAllSlaves();
@@ -369,8 +392,7 @@ public class Main {
 		}
 	}
 
-	private static List<String> entityNames = TableHandler.getEntityNames();
-	private static String getEntityName(String tableName) {
+	private String getEntityName(String tableName) {
 		String finalName;
 		if (!tableName.contains("_")) {
 			return toTitleCase(underscoreCaseToCamelCase(tableName));
@@ -385,7 +407,7 @@ public class Main {
 	/**
 	 * 生成mapper接口文件
 	 */
-	private static void generateMapper(String parentPath, String packageName) throws IOException {
+	private void generateMapper(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
@@ -509,7 +531,7 @@ public class Main {
 	/**
 	 * 生成mapper映射器文件
 	 */
-	private static void generateXmlMappers(String parentPath, String packageName) throws IOException {
+	private void generateXmlMappers(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
@@ -610,7 +632,7 @@ public class Main {
 						builder.append("\t\t<collection property=\"").append(slaveEntityVarName).append("s\" column=\"").append(keyName)
 								.append("\"\n\t\t\t\t\tofType=\"").append(packageName).append(".entity.").append(slaveEntityName)
 								.append("\"\n\t\t\t\t\tselect=\"").append(packageName).append(".mapper.").append(entityName)
-								.append("Mapper.getAll").append(slaveEntityName).append("By").append(byWhat).append("\" />\n");
+								.append("Mapper.getAll").append(slaveEntityName).append("\" />\n");
 					}
 					builder.append("\t</resultMap>\n\n");
 
@@ -693,8 +715,8 @@ public class Main {
 					builder.append("\t\tSELECT *\n");
 					builder.append("\t\tFROM ").append(tableName).append("\n");
 					builder.append("\t\t").append(whereStr).append("\n");
-					builder.append("\t\tORDER BY ${").append(queryVarName).append('.').append(orderFieldVal).append("} ${")
-							.append(queryVarName).append('.').append(orderTypeVal).append("}\n");
+					builder.append("\t\tORDER BY ${").append(queryVarName).append('.').append(orderField).append("} ${")
+							.append(queryVarName).append('.').append(orderType).append("}\n");
 					builder.append("\t</select>\n\n");
 				}
 
@@ -772,8 +794,8 @@ public class Main {
 							builder.append("\t</insert>\n\n");
 
 							//get all
-							builder.append("\t<select id=\"getAll").append(slaveEntityName).append("By")
-									.append(byWhat).append("\" resultType=\"").append(packageName).append(".entity.").append(slaveEntityName)
+							builder.append("\t<select id=\"getAll").append(slaveEntityName)
+									.append("\" resultType=\"").append(packageName).append(".entity.").append(slaveEntityName)
 									.append("\" resultMap=\"").append(slaveMappingName).append("\">\n");
 							builder.append("\t\tSELECT *\n");
 							builder.append("\t\tFROM ").append(slaveTableName).append("\n");
@@ -801,7 +823,7 @@ public class Main {
 	/**
 	 * 生成service接口文件
 	 */
-	private static void generateIService(String parentPath, String packageName) throws IOException {
+	private void generateIService(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
@@ -827,15 +849,6 @@ public class Main {
 				builder.append("import ").append(responseResultFullName).append(";\n\n");
 				builder.append("public interface ").append(serviceName).append(" {\n\n");
 
-				String rrGenericName = responseResultName;
-				if (rrGeneric) {
-					rrGenericName = rrGenericName + "<" + entityName + ">";
-				}
-				String lrrGenericName = listResponseResultName;
-				if (listRrGeneric) {
-					lrrGenericName = lrrGenericName + "<" + entityName + ">";
-				}
-
 				String keyName = null;
 				String idName = null;
 				String camelKeyName = null;
@@ -856,16 +869,27 @@ public class Main {
 					keyType = typeMap.get(key.getPkType());
 				}
 
+				String rrGenericName = responseResultName;
+				String rrGenericIdName = responseResultName;
+				if (rrGeneric) {
+					rrGenericName = rrGenericName + "<" + entityName + ">";
+					rrGenericIdName = rrGenericIdName + "<" + keyType + ">";
+				}
+				String lrrGenericName = listResponseResultName;
+				if (listRrGeneric) {
+					lrrGenericName = lrrGenericName + "<" + entityName + ">";
+				}
+
 				if (keyName != null && combineAddUpdate && needSet) {
-					builder.append("\t").append(rrGenericName).append(" set(").append(entityName).append(" entity);\n\n");
+					builder.append("\t").append(rrGenericIdName).append(" set(").append(entityName).append(" entity);\n\n");
 				}
 
 				if (needAdd) {
-					builder.append("\t").append(rrGenericName).append(" add(").append(entityName).append(" entity);\n\n");
+					builder.append("\t").append(rrGenericIdName).append(" add(").append(entityName).append(" entity);\n\n");
 				}
 
 				if (keyName != null && needUpdate) {
-					builder.append("\t").append(rrGenericName).append(" update(").append(entityName).append(" entity);\n\n");
+					builder.append("\t").append(rrGenericIdName).append(" update(").append(entityName).append(" entity);\n\n");
 				}
 
 				if (needList) {
@@ -910,7 +934,7 @@ public class Main {
 	/**
 	 * 生成service文件
 	 */
-	private static void generateService(String parentPath, String packageName) throws IOException {
+	private void generateService(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
@@ -938,6 +962,7 @@ public class Main {
 				String keyName = null;
 				String idName = null;
 				String camelKeyName = null;
+				String titleKeyName = null;
 				String byWhat = null;
 				String keyType = null;
 				List<PrimaryKey> keys = table.getAllPrimaryKeys();
@@ -946,6 +971,7 @@ public class Main {
 					PrimaryKey key = keys.get(0);
 					keyName = key.getPkName();
 					camelKeyName = underscoreCaseToCamelCase(keyName);
+					titleKeyName = toTitleCase(camelKeyName);
 					if (keyName.endsWith("id")) {
 						idName = "id";
 					} else {
@@ -960,6 +986,7 @@ public class Main {
 				
 				builder.append("import java.util.List;\n");
 				builder.append("import java.util.Date;\n");
+				builder.append("import java.util.Collections;\n");
 				builder.append("import org.springframework.stereotype.Service;\n");
 				builder.append("import javax.annotation.Resource;\n");
 				builder.append("import org.springframework.transaction.annotation.Transactional;\n");
@@ -978,8 +1005,10 @@ public class Main {
 				builder.append("public class ").append(serviceName).append(" implements ").append(iServiceName).append(" {\n\n");
 
 				String rrGenericName = responseResultName;
+				String rrGenericIdName = responseResultName;
 				if (rrGeneric) {
 					rrGenericName = rrGenericName + "<" + entityName + ">";
+					rrGenericIdName = rrGenericIdName + "<" + keyType + ">";
 				}
 				String lrrGenericName = listResponseResultName;
 				if (listRrGeneric) {
@@ -994,20 +1023,95 @@ public class Main {
 						builder.append("\t@Transactional\n");
 					}
 					builder.append("\t@Override\n");
-					builder.append("\tpublic ").append(rrGenericName).append(" set(").append(entityName).append(" entity) {\n");
+					builder.append("\tpublic ").append(rrGenericIdName).append(" set(").append(entityName).append(" entity) {\n");
 					builder.append("\t\tif (entity == null) {\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少参数\");\n");
 					builder.append("\t\t}\n");
+					if (hasSlave) {
+						builder.append("\t\tString s = this.checkParam(entity);\n");
+						builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
+						builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
+						builder.append("\t\t}\n\n");
+						builder.append("\t\tDate date = new Date();\n");
+					}
 					if ("String".equals(keyType)) {
 						builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty)
 								.append('(').append("entity.get").append(toTitleCase(camelKeyName)).append("())").append(") {\n");
 					} else {
 						builder.append("\t\tif (").append("entity.get").append(toTitleCase(camelKeyName)).append("() == null").append(") {\n");
 					}
-					builder.append("\t\t\treturn this.add(entity);\n");
+					if (hasSlave) {
+						if ("String".equals(keyType)) {
+							builder.append("\t\t\tentity.set").append(toTitleCase(camelKeyName)).append('(').append(getIdUtil).append('.')
+									.append(getIdMethod).append('(').append(String.join(", ", getIdParamArr)).append("));\n");
+						}
+						if (!"".equals(createdDate)) {
+							builder.append("\t\t\tentity.set").append(toTitleCase(createdDate)).append("(date);\n");
+						}
+						if (!"".equals(createdBy)) {
+							builder.append("\t\t\t//TODO entity.set").append(toTitleCase(createdBy)).append("(by whom);\n");
+						}
+						if (!"".equals(active)) {
+							builder.append("\t\t\tentity.set").append(toTitleCase(active)).append("(").append(activeCode).append(");\n");
+						}
+						builder.append("\t\t\tif (").append(mapperVarName).append(".add(entity) < 1) {\n");
+						builder.append("\t\t\t\treturn new ").append(rrDiamondName).append("(")
+								.append(errorCode).append(", \"保存失败\");\n");
+						builder.append("\t\t\t}\n");
+					} else {
+						builder.append("\t\t\treturn this.add(entity);\n");
+					}
 					builder.append("\t\t} else {\n");
-					builder.append("\t\t\treturn this.update(entity);\n");
+					if (hasSlave) {
+						if (!"".equals(updatedDate)) {
+							builder.append("\t\t\tentity.set").append(toTitleCase(updatedDate)).append("(date);\n");
+						}
+						if (!"".equals(updatedBy)) {
+							builder.append("\t\t\t//TODO entity.set").append(toTitleCase(updatedBy)).append("(by whom);\n");
+						}
+						for (Table slave : slaves) {
+							String slaveTableName = slave.getTableName();
+							String slaveEntityName = getEntityName(slaveTableName);
+							builder.append("\t\t\t").append(mapperVarName).append(".deleteAll").append(slaveEntityName).append('(')
+									.append(camelKeyName).append(");\n");
+						}
+						builder.append("\t\t\tif (").append(mapperVarName).append(".update(entity) < 1) {\n");
+						builder.append("\t\t\t\tthrow new IllegalStateException(\"编辑失败\");\n");
+						builder.append("\t\t\t}\n");
+					} else {
+						builder.append("\t\t\treturn this.update(entity);\n");
+					}
 					builder.append("\t\t}\n");
+					if (hasSlave) {
+						builder.append('\n');
+						for (Table slave : slaves) {
+							String slaveTableName = slave.getTableName();
+							String slaveEntityName = getEntityName(slaveTableName);
+							String listName = toContentCase(slaveEntityName) + 's';
+							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
+									.append(" = entity.get").append(slaveEntityName).append("s();\n");
+							builder.append("\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+							builder.append("\t\t\t//TODO setId()\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
+									.append(toTitleCase(camelKeyName)).append("());\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(createdBy))
+									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(updatedBy))
+									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
+							builder.append("\t\t}\n");
+							builder.append("\t\tif (!").append(listName).append(".isEmpty()) {\n");
+							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
+									.append(listName).append(");\n");
+							builder.append("\t\t}\n\n");
+						}
+						builder.append("\t\t").append(rrGenericIdName).append(' ').append(responseResultVarName).append(" = new ")
+												.append(rrDiamondName).append("(\"操作成功\");\n");
+						builder.append("\t\t").append(responseResultVarName)
+												.append(".setData(entity.get").append(titleKeyName).append("());\n");
+						builder.append("\t\treturn ").append(responseResultVarName).append(";\n");
+					}
 					builder.append("\t}\n\n");
 				}
 
@@ -1016,7 +1120,7 @@ public class Main {
 						builder.append("\t@Transactional\n");
 					}
 					builder.append("\t@Override\n");
-					builder.append("\tpublic ").append(rrGenericName).append(" add(").append(entityName).append(" entity) {\n");
+					builder.append("\tpublic ").append(rrGenericIdName).append(" add(").append(entityName).append(" entity) {\n");
 					builder.append("\t\tString s = this.checkParam(entity);\n");
 					builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
@@ -1026,7 +1130,7 @@ public class Main {
 								.append(getIdMethod).append('(').append(String.join(", ", getIdParamArr)).append("));\n");
 					}
 					if (!"".equals(createdDate)) {
-						builder.append("\t\tentity.set").append(toTitleCase(createdDate)).append("(new Date());\n");
+						builder.append("\t\tentity.set").append(toTitleCase(createdDate)).append("(date);\n");
 					}
 					if (!"".equals(createdBy)) {
 						builder.append("\t\t//TODO entity.set").append(toTitleCase(createdBy)).append("(by whom);\n");
@@ -1046,6 +1150,17 @@ public class Main {
 							String listName = toContentCase(slaveEntityName) + 's';
 							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
 									.append(" = entity.get").append(slaveEntityName).append("s();\n");
+							builder.append("\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+							builder.append("\t\t\t//TODO setId()\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
+									.append(toTitleCase(camelKeyName)).append("());\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(createdBy))
+									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(updatedBy))
+									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
+							builder.append("\t\t}\n");
 							builder.append("\t\tif (").append(listName).append(" != null && !").append(listName).append(".isEmpty()) {\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
@@ -1053,7 +1168,11 @@ public class Main {
 						}
 						builder.append('\n');
 					}
-					builder.append("\t\treturn new ").append(rrDiamondName).append("(\"保存成功\");\n");
+					builder.append("\t\t").append(rrGenericIdName).append(' ').append(responseResultVarName).append(" = new ")
+											.append(rrDiamondName).append("(\"保存成功\");\n");
+					builder.append("\t\t").append(responseResultVarName)
+											.append(".setData(entity.get").append(titleKeyName).append("());\n");
+					builder.append("\t\treturn ").append(responseResultVarName).append(";\n");
 					builder.append("\t}\n\n");
 				}
 
@@ -1062,9 +1181,9 @@ public class Main {
 						builder.append("\t@Transactional\n");
 					}
 					builder.append("\t@Override\n");
-					builder.append("\tpublic ").append(rrGenericName).append(" update(").append(entityName).append(" entity) {\n");
-					builder.append("\t\t").append(keyType).append(' ').append(camelKeyName).append(" = ")
-							.append("(entity.get").append(toTitleCase(camelKeyName)).append("();\n");
+					builder.append("\tpublic ").append(rrGenericIdName).append(" update(").append(entityName).append(" entity) {\n");
+					builder.append("\t\t").append(keyType).append(' ').append(camelKeyName).append(" = entity.get")
+							.append(toTitleCase(camelKeyName)).append("();\n");
 					if ("String".equals(keyType)) {
 						builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty)
 								.append('(').append(camelKeyName).append(")) {\n");
@@ -1093,7 +1212,18 @@ public class Main {
 							String listName = toContentCase(slaveEntityName) + 's';
 							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
 									.append(" = entity.get").append(slaveEntityName).append("s();\n");
-							builder.append("\t\tif (").append(listName).append(" != null && !").append(listName).append(".isEmpty()) {\n");
+							builder.append("\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+							builder.append("\t\t\t//TODO setId()\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
+									.append(toTitleCase(camelKeyName)).append("());\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(createdBy))
+									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
+							builder.append("\t\t\tline.set").append(toTitleCase(updatedBy))
+									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
+							builder.append("\t\t}\n");
+							builder.append("\t\tif (!").append(listName).append(".isEmpty()) {\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
 							builder.append("\t\t}\n\n");
@@ -1111,6 +1241,9 @@ public class Main {
 					builder.append("\t@Override\n");
 					builder.append("\tpublic ").append(lrrGenericName).append(" list(").append(queryName)
 							.append(" ").append(queryVarName).append(") {\n");
+					builder.append("\t\tif (").append(queryVarName).append(" == null) {\n")
+							.append("\t\t\t").append(queryVarName).append(" = new ").append(queryName).append("();\n")
+							.append("\t\t}\n");
 					if (orderField != null && orderFieldVal != null) {
 						builder.append("\t\tif (").append(queryVarName).append(" != null && ")
 								.append(stringUtil).append('.').append(stringIsEmpty).append('(').append(queryVarName)
@@ -1191,20 +1324,29 @@ public class Main {
 						}
 						builder.append("\t@Override\n");
 						builder.append("\tpublic ").append(rrGenericName).append(" delete(").append(keyType).append(" ").append(camelKeyName).append(") {\n");
+						builder.append("\t\t").append(entityName).append(" ").append(entityVarName).append(" = ").append(mapperVarName).append(".getBy").append(byWhat).append("(").append(camelKeyName).append(");\n");
+						builder.append("\t\tif (").append(entityVarName).append(" == null) {\n");
+						builder.append("\t\t\treturn new ").append(rrDiamondName).append("(")
+								.append(errorCode).append(", \"删除失败，该记录不存在\");\n");
+						builder.append("\t\t}\n");
 						if (hasSlave) {
+							builder.append('\n');
 							for (Table slave : slaves) {
 								String slaveTableName = slave.getTableName();
 								String slaveEntityName = getEntityName(slaveTableName);
 								builder.append("\t\t").append(mapperVarName).append(".deleteAll").append(slaveEntityName).append('(')
 										.append(camelKeyName).append(");\n");
 							}
-							builder.append('\n');
 						}
 						builder.append("\t\tif (").append(mapperVarName).append(".delete(").append(camelKeyName).append(") < 1) {\n");
 						builder.append("\t\t\treturn new ").append(rrDiamondName).append("(")
-								.append(errorCode).append(", \"删除失败，该记录不存在\");\n");
+								.append(errorCode).append(", \"删除失败\");\n");
 						builder.append("\t\t}\n");
-						builder.append("\t\treturn new ").append(rrDiamondName).append("(\"删除成功\");\n");
+						builder.append("\t\t").append(rrGenericIdName).append(' ').append(responseResultVarName).append(" = new ")
+								.append(rrDiamondName).append("(\"删除成功\");\n");
+						builder.append("\t\t").append(responseResultVarName)
+								.append(".setData(").append(entityVarName).append(");\n");
+						builder.append("\t\treturn ").append(responseResultVarName).append(";\n");
 						builder.append("\t}\n\n");
 					}
 
@@ -1243,6 +1385,20 @@ public class Main {
 				if (needSet || needAdd || needUpdate) {
 					builder.append("\tprivate String checkParam(").append(entityName).append(" entity) {\n");
 					builder.append("\t\t//TODO 校验参数逻辑,返回错误提示\n");
+					if (hasSlave) {
+						for (Table slave : slaves) {
+							String slaveTableName = slave.getTableName();
+							String slaveEntityName = getEntityName(slaveTableName);
+							String listName = toContentCase(slaveEntityName) + 's';
+							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
+									.append(" = entity.get").append(slaveEntityName).append("s();\n");
+							builder.append("\t\tif (").append(listName).append(" == null) {\n");
+							builder.append("\t\t\t").append(listName).append(" = Collections.emptyList();\n");
+							builder.append("\t\t\tentity.set").append(slaveEntityName).append("s(").append(listName)
+									.append(");\n");
+							builder.append("\t\t}\n");
+						}
+					}
 					builder.append("\t\treturn \"\";\n");
 					builder.append("\t}\n\n");
 				}
@@ -1260,7 +1416,7 @@ public class Main {
 	/**
 	 * 生成controller文件
 	 */
-	private static void generateController(String parentPath, String packageName) throws IOException {
+	private void generateController(String parentPath, String packageName) throws IOException {
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
@@ -1310,19 +1466,6 @@ public class Main {
 
 				builder.append("\tprivate Logger logger = LoggerFactory.getLogger(this.getClass());\n\n");
 
-				String rrGenericName = responseResultName;
-				if (rrGeneric) {
-					rrGenericName = rrGenericName + "<" + entityName + ">";
-				}
-				String lrrGenericName = listResponseResultName;
-				if (listRrGeneric) {
-					lrrGenericName = lrrGenericName + "<" + entityName + ">";
-				}
-				String consumeStr = "";
-				if ("json".equalsIgnoreCase(consumes)) {
-					consumeStr = "@RequestBody ";
-				}
-
 				String keyName = null;
 				String idName = null;
 				String camelKeyName = null;
@@ -1343,9 +1486,24 @@ public class Main {
 					keyType = typeMap.get(key.getPkType());
 				}
 
+				String rrGenericName = responseResultName;
+				String rrGenericIdName = responseResultName;
+				if (rrGeneric) {
+					rrGenericName = rrGenericName + "<" + entityName + ">";
+					rrGenericIdName = rrGenericIdName + "<" + keyType + ">";
+				}
+				String lrrGenericName = listResponseResultName;
+				if (listRrGeneric) {
+					lrrGenericName = lrrGenericName + "<" + entityName + ">";
+				}
+				String consumeStr = "";
+				if ("json".equalsIgnoreCase(consumes)) {
+					consumeStr = "@RequestBody ";
+				}
+
 				if (keyName != null && combineAddUpdate && needSet) {
 					builder.append("\t@RequestMapping(value = \"/set\", method = RequestMethod.POST)\n");
-					builder.append("\tpublic ").append(rrGenericName).append(" set(")
+					builder.append("\tpublic ").append(rrGenericIdName).append(" set(")
 							.append(consumeStr).append(entityName).append(" entity) {\n");
 					builder.append("\t\ttry {\n");
 					builder.append("\t\t\treturn ").append(serviceVarName).append(".set(entity);\n");
@@ -1363,7 +1521,7 @@ public class Main {
 				} else if (!combineAddUpdate) {
 					if (needAdd) {
 						builder.append("\t@RequestMapping(value = \"/add\", method = RequestMethod.POST)\n");
-						builder.append("\tpublic ").append(rrGenericName).append(" add(")
+						builder.append("\tpublic ").append(rrGenericIdName).append(" add(")
 								.append(consumeStr).append(entityName).append(" entity) {\n");
 						builder.append("\t\ttry {\n");
 						builder.append("\t\t\treturn ").append(serviceVarName).append(".add(entity);\n");
@@ -1382,7 +1540,7 @@ public class Main {
 
 					if (keyName != null && needUpdate) {
 						builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
-						builder.append("\tpublic ").append(rrGenericName).append(" update(").append(consumeStr).append(entityName).append(" entity) {\n");
+						builder.append("\tpublic ").append(rrGenericIdName).append(" update(").append(consumeStr).append(entityName).append(" entity) {\n");
 						builder.append("\t\ttry {\n");
 						builder.append("\t\t\treturn ").append(serviceVarName).append(".update(entity);\n");
 						if (hasSlave) {
@@ -1402,7 +1560,7 @@ public class Main {
 				if (needList) {
 					builder.append("\t@RequestMapping(\"/list\")\n");
 					builder.append("\tpublic ").append(lrrGenericName)
-							.append(" list(@RequestBody(require = false) ").append(queryName).append(" ").append(queryVarName).append(") {\n");
+							.append(" list(@RequestBody(required = false) ").append(queryName).append(" ").append(queryVarName).append(") {\n");
 					builder.append("\t\ttry {\n");
 					builder.append("\t\t\treturn ").append(serviceVarName).append(".list(").append(queryVarName).append(");\n");
 					builder.append("\t\t} catch (Exception e) {\n");

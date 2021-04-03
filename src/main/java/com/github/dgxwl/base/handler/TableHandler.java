@@ -24,30 +24,31 @@ import java.util.Set;
  */
 public class TableHandler {
 	
-	private static List<Table> tables = new ArrayList<>();  //所有主表
-	private static List<String> entityNames = new ArrayList<>();  //记下含有下划线的表名转化后的实体名
+	private List<Table> tables = new ArrayList<>();  //所有主表
+	private List<String> entityNames = new ArrayList<>();  //记下含有下划线的表名转化后的实体名
 
 	static {
+
+	}
+
+	public void readTables(String tablesStr, String oneToMany) {
 		Connection conn = null;
 		try {
 			conn = DBUtils.getConnection();
-			Properties config = DBUtils.getConfigs();
+
 
 			Map<String, Table> tableNameMap = new HashMap<>();
 			Map<String, String> slaveMap = new HashMap<>();
-			
-			String tablesStr = config.getProperty("tables");
+
 			if (tablesStr == null) {
 				tablesStr = "";
 			}
 			Set<String> tableNameSet = new HashSet<>(Arrays.asList(tablesStr.split("[\\s]*[,，][\\s]*")));
 			tableNameSet.remove("");
 
-			String oneToMany = config.getProperty("one_to_many");
 			if (oneToMany == null) {
 				oneToMany = "";
 			}
-
 			if (!oneToMany.equals("")) {
 				String[] pairs = oneToMany.split("[\\s]*[,，][\\s]*");
 				for (String pair : pairs) {
@@ -55,7 +56,7 @@ public class TableHandler {
 					slaveMap.put(masterAndSlave[1], masterAndSlave[0]);
 				}
 			}
-			
+
 			//获取数据库元数据
 			DatabaseMetaData databaseMetaData = conn.getMetaData();
 
@@ -73,7 +74,7 @@ public class TableHandler {
 				if (tableName.contains("_")) {
 					entityNames.add(tableName.substring(tableName.indexOf('_') + 1));
 				}
-				
+
 				//获得该表字段的元数据
 				DBHandler.handleColumns(table, conn, databaseMetaData);
 
@@ -81,7 +82,7 @@ public class TableHandler {
 				ResultSet pkSet = databaseMetaData.getPrimaryKeys(null, null, tableName);
 				while (pkSet.next()) {
 					PrimaryKey primaryKey = new PrimaryKey();
-					
+
 					String pkName = pkSet.getString("COLUMN_NAME");
 					primaryKey.setPkName(pkName);
 					int keySeq = pkSet.getInt("KEY_SEQ");
@@ -115,15 +116,15 @@ public class TableHandler {
 	 * 获得处理好的所有数据主表元数据
 	 * @return tables 所有数据主表元数据
 	 */
-	public static List<Table> getTables() {
+	public List<Table> getTables() {
 		return tables;
 	}
 
 	/**
 	 * 获得处理好的(去掉前缀的)所有带下划线的表名
-	 * @return
+	 * @return 表名
 	 */
-	public static List<String> getEntityNames() {
+	public List<String> getEntityNames() {
 		return entityNames;
 	}
 
