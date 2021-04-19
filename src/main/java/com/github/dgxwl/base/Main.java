@@ -1130,7 +1130,7 @@ public class Main {
 								.append(getIdMethod).append('(').append(String.join(", ", getIdParamArr)).append("));\n");
 					}
 					if (!"".equals(createdDate)) {
-						builder.append("\t\tentity.set").append(toTitleCase(createdDate)).append("(date);\n");
+						builder.append("\t\tentity.set").append(toTitleCase(createdDate)).append("(new Date());\n");
 					}
 					if (!"".equals(createdBy)) {
 						builder.append("\t\t//TODO entity.set").append(toTitleCase(createdBy)).append("(by whom);\n");
@@ -1452,7 +1452,7 @@ public class Main {
 				builder.append("import javax.annotation.Resource;\n");
 				builder.append("import org.slf4j.Logger;\n");
 				builder.append("import org.slf4j.LoggerFactory;\n");
-				builder.append("import ").append(packageName).append(".service.I").append(serviceName).append(";\n");
+				builder.append("import ").append(packageName).append(".service.inter.I").append(serviceName).append(";\n");
 				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 				builder.append("import ").append(responseResultFullName).append(";\n");
 				builder.append("import ").append(queryFullName).append(";\n\n");
