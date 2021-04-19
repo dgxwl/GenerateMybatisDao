@@ -847,6 +847,9 @@ public class Main {
 				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 				builder.append("import ").append(queryFullName).append(";\n");
 				builder.append("import ").append(responseResultFullName).append(";\n\n");
+				if (needList && !responseResultFullName.equals(listResponseResultFullName)) {
+					builder.append("import ").append(listResponseResultFullName).append(";\n");
+				}
 				builder.append("public interface ").append(serviceName).append(" {\n\n");
 
 				String keyName = null;
@@ -999,6 +1002,9 @@ public class Main {
 					builder.append("import ").append(getIdUtilFullName).append(";\n");
 				}
 				builder.append("import ").append(responseResultFullName).append(";\n");
+				if (needList && !responseResultFullName.equals(listResponseResultFullName)) {
+					builder.append("import ").append(listResponseResultFullName).append(";\n");
+				}
 				builder.append("import ").append(queryFullName).append(";\n\n");
 				
 				builder.append("@Service\n");
@@ -1455,6 +1461,9 @@ public class Main {
 				builder.append("import ").append(packageName).append(".service.inter.I").append(serviceName).append(";\n");
 				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 				builder.append("import ").append(responseResultFullName).append(";\n");
+				if (needList && !responseResultFullName.equals(listResponseResultFullName)) {
+					builder.append("import ").append(listResponseResultFullName).append(";\n");
+				}
 				builder.append("import ").append(queryFullName).append(";\n\n");
 				
 				builder.append("@RestController\n");
