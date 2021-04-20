@@ -1251,8 +1251,7 @@ public class Main {
 							.append("\t\t\t").append(queryVarName).append(" = new ").append(queryName).append("();\n")
 							.append("\t\t}\n");
 					if (orderField != null && orderFieldVal != null) {
-						builder.append("\t\tif (").append(queryVarName).append(" != null && ")
-								.append(stringUtil).append('.').append(stringIsEmpty).append('(').append(queryVarName)
+						builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty).append('(').append(queryVarName)
 								.append(".get").append(toTitleCase(orderField)).append("())) {\n");
 						builder.append("\t\t\t").append(queryVarName).append(".set").append(toTitleCase(orderField))
 								.append("(\"").append(orderFieldVal).append("\");\n");
