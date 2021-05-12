@@ -344,6 +344,7 @@ public class Main {
 			) {
 				StringBuilder sbBeforeClass = new StringBuilder();
 				sbBeforeClass.append("package ").append(packageName).append(".entity;\n\n");
+				sbBeforeClass.append("import com.fasterxml.jackson.annotation.JsonIgnoreProperties;\n");
 				sbBeforeClass.append("import lombok.Data;\n");
 				if (!slaveTables.isEmpty()) {
 					sbBeforeClass.append("import java.util.List;\n");
@@ -351,6 +352,7 @@ public class Main {
 				
 				StringBuilder sbAfterClass = new StringBuilder();
 				sbAfterClass.append("@Data\n");
+				sbAfterClass.append("@JsonIgnoreProperties(ignoreUnknown = true)\n");
 				sbAfterClass.append("public class ").append(entityName).append(" {\n");
 				List<Column> fields = table.getAllColumns();
 				for (Column column : fields) {
