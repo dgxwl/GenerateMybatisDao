@@ -172,7 +172,7 @@ public class Main {
 			Properties prop = new Properties();
 			prop.load(in);
 
-			removeSuffix = prop.getProperty("remove_suffix");
+			removeSuffix = prop.getProperty("remove_prefix");
 			queryFullName = prop.getProperty("query");
 			responseResultFullName = prop.getProperty("response_result");
 			listResponseResultFullName = prop.getProperty("list_response_result");
