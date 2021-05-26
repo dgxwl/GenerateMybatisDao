@@ -172,7 +172,7 @@ public class Main {
 			Properties prop = new Properties();
 			prop.load(in);
 
-			removeSuffix = prop.getProperty("remove_prefix");
+			removeSuffix = prop.getProperty("remove_suffix");
 			queryFullName = prop.getProperty("query");
 			responseResultFullName = prop.getProperty("response_result");
 			listResponseResultFullName = prop.getProperty("list_response_result");
@@ -423,6 +423,13 @@ public class Main {
 
 			builder.append("import org.apache.ibatis.annotations.Param;\n");
 			builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
+			if (hasSlave) {
+				for (Table slave : slaves) {
+					String slaveTableName = slave.getTableName();
+					String slaveEntityName = getEntityName(slaveTableName);
+					builder.append("import ").append(packageName).append(".entity.").append(slaveEntityName).append(";\n");
+				}
+			}
 			builder.append("import ").append(queryFullName).append(";\n\n");
 			builder.append("import java.util.List;\n");
 			if ("mybatis-paginator".equals(paginator)) {
@@ -999,6 +1006,14 @@ public class Main {
 				builder.append("import ").append(packageName).append(".service.inter.").append(iServiceName).append(";\n");
 				builder.append("import ").append(packageName).append(".mapper.").append(entityName).append("Mapper;\n");
 				builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
+				if (hasSlave) {
+					for (Table slave : slaves) {
+						String slaveTableName = slave.getTableName();
+						String slaveEntityName = getEntityName(slaveTableName);
+						builder.append("import ").append(packageName).append(".entity.").append(slaveEntityName).append(";\n");
+					}
+					builder.append("import org.springframework.util.CollectionUtils;\n");
+				}
 				builder.append("import ").append(stringUtilFullName).append(";\n");
 				if ("String".equals(keyType)) {
 					builder.append("import ").append(getIdUtilFullName).append(";\n");
@@ -1077,6 +1092,8 @@ public class Main {
 						if (!"".equals(updatedBy)) {
 							builder.append("\t\t\t//TODO entity.set").append(toTitleCase(updatedBy)).append("(by whom);\n");
 						}
+						builder.append("\t\t\t").append(keyType).append(' ').append(camelKeyName).append(" = entity.get")
+								.append(titleKeyName).append("();\n");
 						for (Table slave : slaves) {
 							String slaveTableName = slave.getTableName();
 							String slaveEntityName = getEntityName(slaveTableName);
@@ -1098,18 +1115,18 @@ public class Main {
 							String listName = toContentCase(slaveEntityName) + 's';
 							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
 									.append(" = entity.get").append(slaveEntityName).append("s();\n");
-							builder.append("\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
-							builder.append("\t\t\t//TODO setId()\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
+							builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
+							builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+							builder.append("\t\t\t\t//TODO setId()\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
 									.append(toTitleCase(camelKeyName)).append("());\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(createdBy))
+							builder.append("\t\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(createdBy))
 									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(updatedBy))
+							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedBy))
 									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
-							builder.append("\t\t}\n");
-							builder.append("\t\tif (!").append(listName).append(".isEmpty()) {\n");
+							builder.append("\t\t\t}\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
 							builder.append("\t\t}\n\n");
@@ -1138,7 +1155,8 @@ public class Main {
 								.append(getIdMethod).append('(').append(String.join(", ", getIdParamArr)).append("));\n");
 					}
 					if (!"".equals(createdDate)) {
-						builder.append("\t\tentity.set").append(toTitleCase(createdDate)).append("(new Date());\n");
+						builder.append("\t\tDate date = new Date();\n");
+						builder.append("\t\tentity.set").append(toTitleCase(createdDate)).append("(date);\n");
 					}
 					if (!"".equals(createdBy)) {
 						builder.append("\t\t//TODO entity.set").append(toTitleCase(createdBy)).append("(by whom);\n");
@@ -1158,21 +1176,21 @@ public class Main {
 							String listName = toContentCase(slaveEntityName) + 's';
 							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
 									.append(" = entity.get").append(slaveEntityName).append("s();\n");
-							builder.append("\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
-							builder.append("\t\t\t//TODO setId()\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
+							builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
+							builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+							builder.append("\t\t\t\t//TODO setId()\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
 									.append(toTitleCase(camelKeyName)).append("());\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(createdBy))
+							builder.append("\t\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(createdBy))
 									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(updatedBy))
+							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedBy))
 									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
-							builder.append("\t\t}\n");
-							builder.append("\t\tif (").append(listName).append(" != null && !").append(listName).append(".isEmpty()) {\n");
+							builder.append("\t\t\t}\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
-							builder.append("\t\t}\n");
+							builder.append("\t\t}\n\n");
 						}
 						builder.append('\n');
 					}
@@ -1205,7 +1223,8 @@ public class Main {
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
 					builder.append("\t\t}\n");
 					if (!"".equals(updatedDate)) {
-						builder.append("\t\tentity.set").append(toTitleCase(updatedDate)).append("(new Date());\n");
+						builder.append("\t\tDate date = new Date();\n");
+						builder.append("\t\tentity.set").append(toTitleCase(updatedDate)).append("(date);\n");
 					}
 					if (!"".equals(updatedBy)) {
 						builder.append("\t\t//TODO entity.set").append(toTitleCase(updatedBy)).append("(by whom);\n");
@@ -1220,18 +1239,18 @@ public class Main {
 							String listName = toContentCase(slaveEntityName) + 's';
 							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
 									.append(" = entity.get").append(slaveEntityName).append("s();\n");
-							builder.append("\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
-							builder.append("\t\t\t//TODO setId()\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
+							builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
+							builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+							builder.append("\t\t\t\t//TODO setId()\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(camelKeyName)).append("(entity.get")
 									.append(toTitleCase(camelKeyName)).append("());\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(createdBy))
+							builder.append("\t\t\t\tline.set").append(toTitleCase(createdDate)).append("(date);\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedDate)).append("(date);\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(createdBy))
 									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
-							builder.append("\t\t\tline.set").append(toTitleCase(updatedBy))
+							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedBy))
 									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
-							builder.append("\t\t}\n");
-							builder.append("\t\tif (!").append(listName).append(".isEmpty()) {\n");
+							builder.append("\t\t\t}\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
 							builder.append("\t\t}\n\n");
@@ -1392,20 +1411,6 @@ public class Main {
 				if (needSet || needAdd || needUpdate) {
 					builder.append("\tprivate String checkParam(").append(entityName).append(" entity) {\n");
 					builder.append("\t\t//TODO 校验参数逻辑,返回错误提示\n");
-					if (hasSlave) {
-						for (Table slave : slaves) {
-							String slaveTableName = slave.getTableName();
-							String slaveEntityName = getEntityName(slaveTableName);
-							String listName = toContentCase(slaveEntityName) + 's';
-							builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
-									.append(" = entity.get").append(slaveEntityName).append("s();\n");
-							builder.append("\t\tif (").append(listName).append(" == null) {\n");
-							builder.append("\t\t\t").append(listName).append(" = Collections.emptyList();\n");
-							builder.append("\t\t\tentity.set").append(slaveEntityName).append("s(").append(listName)
-									.append(");\n");
-							builder.append("\t\t}\n");
-						}
-					}
 					builder.append("\t\treturn \"\";\n");
 					builder.append("\t}\n\n");
 				}
