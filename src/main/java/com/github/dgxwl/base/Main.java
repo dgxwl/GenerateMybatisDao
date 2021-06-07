@@ -1126,6 +1126,7 @@ public class Main {
 									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
 							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedBy))
 									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(active)).append('(').append(activeCode).append(");\n");
 							builder.append("\t\t\t}\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
@@ -1187,6 +1188,7 @@ public class Main {
 									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
 							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedBy))
 									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(active)).append('(').append(activeCode).append(");\n");
 							builder.append("\t\t\t}\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
@@ -1250,6 +1252,7 @@ public class Main {
 									.append("(entity.get").append(toTitleCase(createdBy)).append("());\n");
 							builder.append("\t\t\t\tline.set").append(toTitleCase(updatedBy))
 									.append("(entity.get").append(toTitleCase(updatedBy)).append("());\n");
+							builder.append("\t\t\t\tline.set").append(toTitleCase(active)).append('(').append(activeCode).append(");\n");
 							builder.append("\t\t\t}\n");
 							builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
 									.append(listName).append(");\n");
