@@ -68,12 +68,13 @@ public class DBUtils {
 	 * @param conn
 	 */
 	public static void closeConnection(Connection conn) {
+		if (conn == null) {
+			return;
+		}
 		try {
-			if (conn != null) {
-				conn.setAutoCommit(true);
-				//此处的close()是归还
-				conn.close();
-			}
+			conn.setAutoCommit(true);
+			//此处的close()是归还
+			conn.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -84,12 +85,13 @@ public class DBUtils {
 	 * @param conn
 	 */
 	public static void rollback(Connection conn) {
-		if (conn != null) {
-			try {
-				conn.rollback();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+		if (conn == null) {
+			return;
+		}
+		try {
+			conn.rollback();
+		} catch (SQLException e) {
+			e.printStackTrace();
 		}
 	}
 }
