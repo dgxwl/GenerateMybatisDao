@@ -82,6 +82,8 @@ public class Main {
 		typeMap.put("DATETIME", "Date");
 		typeMap.put("TIMESTAMP", "Date");
 		typeMap.put("INET", "String");
+		typeMap.put("JSON", "String");
+		typeMap.put("JSONB", "String");
 		
 		fullNameTypeMap.put("CHAR", "java.lang.String");
 		fullNameTypeMap.put("VARCHAR", "java.lang.String");
@@ -108,6 +110,8 @@ public class Main {
 		fullNameTypeMap.put("DATETIME", "java.util.Date");
 		fullNameTypeMap.put("TIMESTAMP", "java.util.Date");
 		fullNameTypeMap.put("INET", "java.lang.String");
+		fullNameTypeMap.put("JSON", "java.lang.String");
+		fullNameTypeMap.put("JSONB", "java.lang.String");
 
 		typeImportMap.put("BigDecimal", "import java.math.BigDecimal;");
 		typeImportMap.put("Date", "import java.util.Date;");
