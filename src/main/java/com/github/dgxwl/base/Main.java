@@ -670,6 +670,20 @@ public class Main {
 						builder.append("\t</resultMap>\n\n");
 					}
 				}
+				
+				//selectAllColumns
+				builder.append("\t<sql id=\"selectCols\">\n");
+				builder.append("\t\tSELECT\n");
+				for (int i = 0, size = columns.size(); i < size; i++) {
+					Column column = columns.get(i);
+					builder.append("\t\t\t").append(column.getColumnName());
+					if (i < size - 1) {
+						builder.append(',');
+					}
+					builder.append('\n');
+				}
+				builder.append("\t\tFROM ").append(tableName).append('\n');
+				builder.append("\t</sql>\n\n");
 
 				//add
 				if (needAdd) {
@@ -725,8 +739,7 @@ public class Main {
 				if (needList) {
 					builder.append("\t<select id=\"list\" resultType=\"").append(packageName)
 							.append(".entity.").append(entityName).append("\" resultMap=\"").append(listResultMap).append("\">\n");
-					builder.append("\t\tSELECT *\n");
-					builder.append("\t\tFROM ").append(tableName).append("\n");
+					builder.append("\t\t<include refid=\"selectCols\" />\n");
 					builder.append("\t\t").append(whereStr).append("\n");
 					builder.append("\t\tORDER BY ${").append(queryVarName).append('.').append(orderField).append("} ${")
 							.append(queryVarName).append('.').append(orderType).append("}\n");
@@ -739,8 +752,7 @@ public class Main {
 						builder.append("\t<select id=\"getBy").append(byWhat)
 								.append("\" resultType=\"").append(packageName).append(".entity.").append(entityName)
 								.append("\" resultMap=\"mapping\">\n");
-						builder.append("\t\tSELECT *\n");
-						builder.append("\t\tFROM ").append(tableName).append("\n");
+						builder.append("\t\t<include refid=\"selectCols\" />\n");
 						builder.append("\t\tWHERE ").append(keyName).append(" = #{").append(camelKeyName).append("}\n");
 						builder.append("\t</select>\n\n");
 					}
