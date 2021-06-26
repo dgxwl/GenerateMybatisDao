@@ -1,10 +1,5 @@
 package com.github.dgxwl.base.handler;
 
-import com.github.dgxwl.util.DBUtils;
-import com.github.dgxwl.base.handler.dbhandler.DBHandler;
-import com.github.dgxwl.base.entity.PrimaryKey;
-import com.github.dgxwl.base.entity.Table;
-
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
@@ -14,12 +9,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
+
+import com.github.dgxwl.base.entity.PrimaryKey;
+import com.github.dgxwl.base.entity.Table;
+import com.github.dgxwl.base.handler.dbhandler.DBHandler;
+import com.github.dgxwl.util.DBUtils;
 
 /**
  * 连接数据库, 拿到所有数据表元数据
- * @author Administrator
+ * @author dgxwl
  *
  */
 public class TableHandler {
