@@ -2,7 +2,7 @@ package com.github.dgxwl.base.entity;
 
 /**
  * 一个字段的元数据
- * @author Administrator
+ * @author dgxwl
  *
  */
 public class Column {
