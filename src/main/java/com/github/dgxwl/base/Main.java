@@ -192,7 +192,7 @@ public class Main {
 			errorCode = Optional.ofNullable(prop.getProperty("error_code")).orElse("");
 			pages = Optional.ofNullable(prop.getProperty("pages")).orElse("");
 			total = Optional.ofNullable(prop.getProperty("total")).orElse("");
-			paginator = Optional.ofNullable(prop.getProperty("paginator")).orElse("");
+			paginator = Optional.ofNullable(prop.getProperty("paginator")).orElse("pageHelper");
 			consumes = Optional.ofNullable(prop.getProperty("consumes")).orElse("");
 			combineAddUpdateStr = Optional.ofNullable(prop.getProperty("combine_add_update")).orElse("");
 			orderField = Optional.ofNullable(prop.getProperty("order_field")).orElse("");
@@ -400,9 +400,7 @@ public class Main {
 			if (needList || hasSlave) {
 				builder.append("import java.util.List;\n");
 			}
-			if ("mybatis-paginator".equals(paginator)) {
-				builder.append(PaginatorHandler.getImports(paginator)).append("\n");
-			}
+			builder.append(PaginatorHandler.getMapperImportStr(paginator)).append("\n");
 
 			builder.append("public interface ").append(mapperName).append(" {\n\n");
 
@@ -948,7 +946,7 @@ public class Main {
 			builder.append("import org.springframework.stereotype.Service;\n");
 			builder.append("import javax.annotation.Resource;\n");
 			builder.append("import org.springframework.transaction.annotation.Transactional;\n");
-			builder.append(PaginatorHandler.getImports(paginator));
+			builder.append(PaginatorHandler.getServiceImportStr(paginator));
 			builder.append("import ").append(packageName).append(".service.inter.").append(iServiceName).append(";\n");
 			builder.append("import ").append(packageName).append(".mapper.").append(entityName).append("Mapper;\n");
 			builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
