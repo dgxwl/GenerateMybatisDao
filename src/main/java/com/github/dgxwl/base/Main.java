@@ -116,6 +116,7 @@ public class Main {
 	}
 
 	private static String removePrefix;
+	private static String mapperPackageName;
 	private static String queryFullName;
 	private static String queryName;
 	private static String queryVarName;
@@ -175,6 +176,7 @@ public class Main {
 			prop.load(in);
 			//读取配置参数
 			removePrefix = Optional.ofNullable(prop.getProperty("remove_prefix")).orElse("true");
+			mapperPackageName = Optional.ofNullable(prop.getProperty("mapper_package_pame")).orElse("mapper");
 			queryFullName = Optional.ofNullable(prop.getProperty("query")).orElse("");
 			responseResultFullName = Optional.ofNullable(prop.getProperty("response_result")).orElse("");
 			listResponseResultFullName = Optional.ofNullable(prop.getProperty("list_response_result")).orElse("");
@@ -383,7 +385,7 @@ public class Main {
 			boolean hasSlave = slaves != null && !slaves.isEmpty();
 
 			StringBuilder builder = new StringBuilder();
-			builder.append("package ").append(packageName).append(".mapper;\n\n");
+			builder.append("package ").append(packageName).append('.').append(mapperPackageName).append(";\n\n");
 
 			builder.append("import org.apache.ibatis.annotations.Param;\n");
 			builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
@@ -491,8 +493,8 @@ public class Main {
 
 			builder.append("}\n");
 			
-			String fileName = parentPath + "/mapper/" + mapperName + ".java";
-			FileUtil.mkdirIfNotExists(parentPath + "/mapper");
+			String fileName = parentPath + "/" + mapperPackageName + "/" + mapperName + ".java";
+			FileUtil.mkdirIfNotExists(parentPath + "/" + mapperPackageName);
 			FileUtil.writeTextToFile(fileName, builder.toString());
 		}
 	}
@@ -513,8 +515,8 @@ public class Main {
 			builder.append("  PUBLIC \"-//mybatis.org//DTD Mapper 3.0//EN\"\n");
 			builder.append("  \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n\n");
 			
-			builder.append("<mapper namespace=\"").append(packageName).append(".mapper.")
-					.append(entityName).append("Mapper\">\n\n");
+			builder.append("<mapper namespace=\"").append(packageName).append('.').append(mapperPackageName)
+				.append('.').append(entityName).append("Mapper\">\n\n");
 
 			String keyName = null;
 			String idName = null;
@@ -948,7 +950,7 @@ public class Main {
 			builder.append("import org.springframework.transaction.annotation.Transactional;\n");
 			builder.append(PaginatorHandler.getServiceImportStr(paginator));
 			builder.append("import ").append(packageName).append(".service.inter.").append(iServiceName).append(";\n");
-			builder.append("import ").append(packageName).append(".mapper.").append(entityName).append("Mapper;\n");
+			builder.append("import ").append(packageName).append('.').append(mapperPackageName).append('.').append(entityName).append("Mapper;\n");
 			builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
 			if (hasSlave) {
 				for (Table slave : slaves) {
