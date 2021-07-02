@@ -8,7 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public class PostgresqlStrategy implements IDBStrategy {
+public class PostgreSQLStrategy implements IDBStrategy {
 
     @Override
     public ResultSet getColumnMetaDataResultSet(Table table, Connection conn, DatabaseMetaData databaseMetaData) {

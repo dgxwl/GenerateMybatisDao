@@ -1,5 +1,14 @@
 package com.github.dgxwl.base;
 
+import com.github.dgxwl.base.entity.Column;
+import com.github.dgxwl.base.entity.PrimaryKey;
+import com.github.dgxwl.base.entity.Table;
+import com.github.dgxwl.base.handler.PaginatorHandler;
+import com.github.dgxwl.base.handler.TableHandler;
+import com.github.dgxwl.util.DBUtils;
+import com.github.dgxwl.util.FileUtil;
+import com.github.dgxwl.util.StringUtil;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,15 +22,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-
-import com.github.dgxwl.base.entity.Column;
-import com.github.dgxwl.base.entity.PrimaryKey;
-import com.github.dgxwl.base.entity.Table;
-import com.github.dgxwl.base.handler.PaginatorHandler;
-import com.github.dgxwl.base.handler.TableHandler;
-import com.github.dgxwl.util.DBUtils;
-import com.github.dgxwl.util.FileUtil;
-import com.github.dgxwl.util.StringUtil;
 
 /**
  * 生成代码文件

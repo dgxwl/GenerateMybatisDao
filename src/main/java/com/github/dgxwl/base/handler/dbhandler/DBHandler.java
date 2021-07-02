@@ -4,8 +4,8 @@ import com.github.dgxwl.base.entity.Column;
 import com.github.dgxwl.util.DBUtils;
 import com.github.dgxwl.base.entity.Table;
 import com.github.dgxwl.base.handler.dbhandler.strategy.IDBStrategy;
-import com.github.dgxwl.base.handler.dbhandler.strategy.MySqlStrategy;
-import com.github.dgxwl.base.handler.dbhandler.strategy.PostgresqlStrategy;
+import com.github.dgxwl.base.handler.dbhandler.strategy.MySQLStrategy;
+import com.github.dgxwl.base.handler.dbhandler.strategy.PostgreSQLStrategy;
 
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -70,9 +70,9 @@ public class DBHandler {
 
     private static IDBStrategy getStrategyByDriver(String driverStr) {
         if (driverStr.contains("postgresql")) {
-            return new PostgresqlStrategy();
+            return new PostgreSQLStrategy();
         } else if (driverStr.contains("mysql")) {
-            return new MySqlStrategy();
+            return new MySQLStrategy();
         }
         return null;
     }
