@@ -3,8 +3,9 @@ package com.github.dgxwl.base;
 import com.github.dgxwl.base.entity.Column;
 import com.github.dgxwl.base.entity.PrimaryKey;
 import com.github.dgxwl.base.entity.Table;
-import com.github.dgxwl.base.handler.PaginatorHandler;
+import com.github.dgxwl.base.handler.paginator.PaginatorHandler;
 import com.github.dgxwl.base.handler.TableHandler;
+import com.github.dgxwl.base.handler.paginator.strategy.IPaginatorStrategy;
 import com.github.dgxwl.util.DBUtils;
 import com.github.dgxwl.util.FileUtil;
 import com.github.dgxwl.util.StringUtil;
@@ -402,7 +403,10 @@ public class ApiGenerator {
 			if (needList || hasSlave) {
 				builder.append("import java.util.List;\n");
 			}
-			builder.append(PaginatorHandler.getMapperImportStr(paginator)).append("\n");
+            IPaginatorStrategy strategy = PaginatorHandler.getStrategy(paginator);
+			if (strategy != null) {
+                builder.append(strategy.getMapperImport()).append("\n");
+            }
 
 			builder.append("public interface ").append(mapperName).append(" {\n\n");
 
@@ -438,15 +442,7 @@ public class ApiGenerator {
 
 			//list
 			if (needList) {
-				switch (paginator) {
-					case "pageHelper":
-						builder.append("\tList<").append(entityName).append("> list(@Param(\"").append(queryVarName)
-								.append("\") ").append(queryName).append(" ").append(queryVarName).append(");\n\n");
-					case "mybatis-paginator":
-						builder.append("\tPageList<").append(entityName).append("> list(@Param(\"").append(queryVarName)
-								.append("\") ").append(queryName).append(" ").append(queryVarName)
-								.append(", @Param(\"pageBounds\") PageBounds pageBounds);\n\n");
-				}
+				PaginatorHandler.getStrategy(paginator).getMapperListDefines(builder, entityName, queryName, queryVarName);
 			}
 
 			if (keyName != null) {
@@ -948,7 +944,10 @@ public class ApiGenerator {
 			builder.append("import org.springframework.stereotype.Service;\n");
 			builder.append("import javax.annotation.Resource;\n");
 			builder.append("import org.springframework.transaction.annotation.Transactional;\n");
-			builder.append(PaginatorHandler.getServiceImportStr(paginator));
+            IPaginatorStrategy strategy = PaginatorHandler.getStrategy(paginator);
+            if (strategy != null) {
+                builder.append(strategy.getServiceImport());
+            }
 			builder.append("import ").append(packageName).append(".service.inter.").append(iServiceName).append(";\n");
 			builder.append("import ").append(packageName).append('.').append(mapperPackageName).append('.').append(entityName).append("Mapper;\n");
 			builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
@@ -1233,34 +1232,10 @@ public class ApiGenerator {
 
 				String titleTotal = StringUtil.toTitleCase(total);
 				String titlePages = StringUtil.toTitleCase(pages);
-				switch (paginator) {
-					case "pageHelper":
-						builder.append("\t\tPageHelper.startPage(").append(queryVarName).append(".getPage(), ")
-								.append(queryVarName).append(".getLimit(), true);\n");
-						builder.append("\t\tList<").append(entityName).append("> list = ").append(mapperVarName)
-								.append(".list(").append(queryVarName).append(");\n");
-						builder.append("\t\t").append(lrrGenericName).append(" ")
-								.append(lrrGenericName).append(" = new ").append(lrrDiamondName).append("();\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(StringUtil.toTitleCase(listRrData)).append("(list);\n");
-						builder.append("\t\t").append(responseResultVarName)
-								.append(".set").append(titleTotal)
-								.append("((int)((Page<").append(entityName).append(">)list).getTotal());\n");
-						builder.append("\t\t").append(responseResultVarName)
-								.append(".set").append(titlePages)
-								.append("((int)((Page<").append(entityName).append(">)list).getPages());\n");
-						break;
-					case "mybatis-paginator":
-						builder.append("\t\tPageList<").append(entityName).append("> list = ").append(mapperVarName)
-								.append(".list(").append(queryVarName).append(", new PageBounds(").append(queryVarName)
-								.append(".getPage(), ").append(queryVarName).append(".getLimit()));\n");
-						builder.append("\t\t").append(lrrGenericName).append(" ")
-								.append(responseResultVarName).append(" = new ").append(lrrDiamondName).append("();\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(StringUtil.toTitleCase(listRrData)).append("(list);\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(titleTotal)
-								.append("(list.getPaginator().getTotalCount());\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(titlePages)
-								.append("(list.getPaginator().getTotalPages());\n");
-				}
+				PaginatorHandler.getStrategy(paginator).getServiceListBusinessLogic(
+				        builder, queryVarName, entityName, mapperVarName, lrrGenericName, lrrDiamondName,
+                        responseResultVarName, listRrData, titleTotal, titlePages
+                );
 				builder.append("\t\treturn ").append(responseResultVarName).append(";\n");
 				builder.append("\t}\n\n");
 			}

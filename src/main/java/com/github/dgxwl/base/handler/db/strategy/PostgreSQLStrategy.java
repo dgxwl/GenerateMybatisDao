@@ -1,4 +1,4 @@
-package com.github.dgxwl.base.handler.dbhandler.strategy;
+package com.github.dgxwl.base.handler.db.strategy;
 
 import com.github.dgxwl.base.entity.Table;
 

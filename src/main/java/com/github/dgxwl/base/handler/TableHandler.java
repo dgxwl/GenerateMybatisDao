@@ -13,7 +13,7 @@ import java.util.Set;
 
 import com.github.dgxwl.base.entity.PrimaryKey;
 import com.github.dgxwl.base.entity.Table;
-import com.github.dgxwl.base.handler.dbhandler.DBHandler;
+import com.github.dgxwl.base.handler.db.DBHandler;
 import com.github.dgxwl.util.DBUtils;
 
 /**

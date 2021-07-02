@@ -1,7 +1,7 @@
 package com.github.dgxwl.payment;
 
 import com.github.dgxwl.base.ApiGenerator;
-import com.github.dgxwl.base.handler.dbhandler.DBHandler;
+import com.github.dgxwl.base.handler.db.DBHandler;
 import com.github.dgxwl.util.DBUtils;
 
 import java.io.BufferedReader;
