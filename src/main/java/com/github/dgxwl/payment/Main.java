@@ -1,5 +1,6 @@
 package com.github.dgxwl.payment;
 
+import com.github.dgxwl.base.ApiGenerator;
 import com.github.dgxwl.base.handler.dbhandler.DBHandler;
 import com.github.dgxwl.util.DBUtils;
 
@@ -60,8 +61,8 @@ public class Main {
             columnAfterPaymentAmount = parts[1];
             paymentColumnComment = parts[2];
 
-            String active = com.github.dgxwl.base.Main.active;
-            String activeCode = com.github.dgxwl.base.Main.activeCode;
+            String active = ApiGenerator.active;
+            String activeCode = ApiGenerator.activeCode;
             String shortIntType = DBHandler.getShortIntType();
             String dateTimeType = DBHandler.getDateTimeType();
 
@@ -91,7 +92,7 @@ public class Main {
 
             String tablesStr = billTableName + "," + billPaymentTableName;
             String oneToMany = billTableName + ":" + billLineTableName;
-            new com.github.dgxwl.base.Main(tablesStr, oneToMany).generate();
+            new ApiGenerator(tablesStr, oneToMany).generate();
 
 
         } catch (Exception e) {

@@ -28,7 +28,7 @@ import com.github.dgxwl.util.StringUtil;
  * @author dgxwl
  *
  */
-public class Main {
+public class ApiGenerator {
 	
 	private List<Table> tables;
 	private List<String> entityNames;
@@ -171,7 +171,7 @@ public class Main {
 	private static boolean needBatchDelete;
 	
 	static {
-		try (InputStream in = Main.class.getClassLoader().getResourceAsStream("base.properties")) {
+		try (InputStream in = ApiGenerator.class.getClassLoader().getResourceAsStream("base.properties")) {
 			Properties prop = new Properties();
 			prop.load(in);
 			//读取配置参数
@@ -245,14 +245,14 @@ public class Main {
 		needBatchDelete = needs.contains("batchDelete");
 	}
 
-	public Main(String tablesStr, String oneToMany) {
+	public ApiGenerator(String tablesStr, String oneToMany) {
 		this.tablesStr = tablesStr;
 		this.oneToMany = oneToMany;
 	}
 
 	public static void main(String[] args) {
 		try {
-			new Main(defaultTablesStr, defaultOneToMany).generate();
+			new ApiGenerator(defaultTablesStr, defaultOneToMany).generate();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
