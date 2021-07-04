@@ -1,20 +1,18 @@
 package com.github.dgxwl.base.handler;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import com.github.dgxwl.base.entity.PrimaryKey;
 import com.github.dgxwl.base.entity.Table;
 import com.github.dgxwl.base.handler.db.DBHandler;
 import com.github.dgxwl.util.DBUtils;
+
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 连接数据库, 拿到所有数据表元数据
@@ -30,20 +28,15 @@ public class TableHandler {
 
 	}
 
-	public void readTables(String tablesStr, String oneToMany) {
+	public void readTables(Set<String> tableNameSet, String oneToMany) {
+		tableNameSet.remove(null);
+		tableNameSet.remove("");
 		Connection conn = null;
 		try {
 			conn = DBUtils.getConnection();
 
-
 			Map<String, Table> tableNameMap = new HashMap<>();
 			Map<String, String> slaveMap = new HashMap<>();
-
-			if (tablesStr == null) {
-				tablesStr = "";
-			}
-			Set<String> tableNameSet = new HashSet<>(Arrays.asList(tablesStr.split("[\\s]*[,，][\\s]*")));
-			tableNameSet.remove("");
 
 			if (oneToMany == null) {
 				oneToMany = "";
@@ -51,7 +44,7 @@ public class TableHandler {
 			if (!oneToMany.equals("")) {
 				String[] pairs = oneToMany.split("[\\s]*[,，][\\s]*");
 				for (String pair : pairs) {
-					String[] masterAndSlave = pair.split(":");
+					String[] masterAndSlave = pair.split("[\\s]*:[\\s]*");
 					slaveMap.put(masterAndSlave[1], masterAndSlave[0]);
 				}
 			}

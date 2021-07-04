@@ -16,6 +16,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,20 +34,29 @@ public class ApiGenerator {
 	
 	private List<Table> tables;
 	private List<String> entityNames;
-	private String tablesStr;
+	private Set<String> tableSet;
 	private String oneToMany;
 
 	private static String path;
 	private static String packageName;
 	private static String defaultTablesStr;
+	private static Set<String> defaultTableSet;
 	private static String defaultOneToMany;
 	static {
 		Properties config = DBUtils.getConfigs();
 		path = config.getProperty("path");
 		packageName = config.getProperty("package");
 
-		defaultTablesStr = config.getProperty("tables");
-		defaultOneToMany = config.getProperty("one_to_many");
+		defaultTableSet = new HashSet<>();
+		defaultTablesStr = Optional.ofNullable(config.getProperty("tables")).orElse("");
+		String[] dtsSplit = defaultTablesStr.split(",");
+		defaultTableSet.addAll(Arrays.asList(dtsSplit));
+		defaultOneToMany = Optional.ofNullable(config.getProperty("one_to_many")).orElse("");
+		dtsSplit = defaultOneToMany.split("[\\s]*[,，][\\s]*");
+		for (String s : dtsSplit) {
+			String[] spl = s.split("[\\s]*:[\\s]*");
+			defaultTableSet.add(spl[0]);
+		}
 	}
 	//映射SQL数据类型和Java数据类型
 	private static Map<String, String> typeMap = new HashMap<>();
@@ -246,14 +256,14 @@ public class ApiGenerator {
 		needBatchDelete = needs.contains("batchDelete");
 	}
 
-	public ApiGenerator(String tablesStr, String oneToMany) {
-		this.tablesStr = tablesStr;
+	public ApiGenerator(Set<String> tableSet, String oneToMany) {
+		this.tableSet = tableSet;
 		this.oneToMany = oneToMany;
 	}
 
 	public static void main(String[] args) {
 		try {
-			new ApiGenerator(defaultTablesStr, defaultOneToMany).generate();
+			new ApiGenerator(defaultTableSet, defaultOneToMany).generate();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -261,7 +271,7 @@ public class ApiGenerator {
 	
 	public void generate() throws IOException {
 		TableHandler tableHandler = new TableHandler();
-		tableHandler.readTables(tablesStr, oneToMany);
+		tableHandler.readTables(tableSet, oneToMany);
 		tables = tableHandler.getTables();
 		entityNames = tableHandler.getEntityNames();
 

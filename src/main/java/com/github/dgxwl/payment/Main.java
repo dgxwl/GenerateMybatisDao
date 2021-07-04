@@ -10,7 +10,9 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 public class Main {
     public static void main(String[] args) {
@@ -90,9 +92,11 @@ public class Main {
             ps.execute();
             DBUtils.closeConnection(conn);
 
-            String tablesStr = billTableName + "," + billPaymentTableName;
+            Set<String> tableNameSet = new HashSet<>(4);
+            tableNameSet.add(billTableName);
+            tableNameSet.add(billPaymentTableName);
             String oneToMany = billTableName + ":" + billLineTableName;
-            new ApiGenerator(tablesStr, oneToMany).generate();
+            new ApiGenerator(tableNameSet, oneToMany).generate();
 
 
         } catch (Exception e) {
