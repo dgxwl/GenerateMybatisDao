@@ -38,8 +38,9 @@ public class StringUtil {
 		char[] chs = str.toCharArray();
 		if (chs[0] >= 'A' && chs[0] <= 'Z') {
 			chs[0] += 32;
+			return String.valueOf(chs);
 		}
-		return String.valueOf(chs);
+		return str;
 	}
 
 	/**
@@ -69,7 +70,7 @@ public class StringUtil {
 	 */
 	public static String getSimpleClassName(String fullClassName) {
 		if (isEmpty(fullClassName)) {
-			return fullClassName;
+			return "";
 		}
 		int lastIndexOfDot = fullClassName.lastIndexOf('.');
 		if (lastIndexOfDot == -1) {
@@ -122,6 +123,37 @@ public class StringUtil {
 			char ch = builder.charAt(i);
 			if (ch >= 'A' && ch <= 'Z') {
 				builder.replace(i, i + 1, "_" + (char)(ch+32));
+			}
+		}
+		return builder.toString();
+	}
+	
+	/**
+	 * url字符串转驼峰
+	 * @param str url字符串
+	 * @return 驼峰字符串
+	*/
+	public static String urlToTitleCamelCase(String str) {
+		if (isEmpty(str)) {
+			return str;
+		}
+		StringBuilder builder = new StringBuilder(str);
+		if (builder.charAt(0) != '/') {
+			builder.insert(0, '/');
+		}
+		for (int i = builder.length() - 1; i >= 0; i--) {
+			if (i == builder.length() - 1 && builder.charAt(i) == '/') {  //如果末尾是'/'就去掉
+				builder.deleteCharAt(i);
+				continue;
+			}
+			char ch = builder.charAt(i);
+			if (ch == '/') {
+				char nextCh = builder.charAt(i + 1);
+				if (nextCh >= 'a' && nextCh <= 'z') {
+					nextCh -= 32;
+				}
+				builder.setCharAt(i + 1, nextCh);
+				builder.deleteCharAt(i);
 			}
 		}
 		return builder.toString();
