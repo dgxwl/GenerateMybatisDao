@@ -158,6 +158,10 @@ public class ApiGenerator {
 	private static String pages;
 	private static String total;
 	private static String paginator;
+	private static String urlPrefix;
+	private static String urlSuffix;
+	private static String baseController;
+	private static String baseControllerShortName;
 	private static String consumes;
 	private static String combineAddUpdateStr;
 	private static boolean combineAddUpdate;
@@ -206,6 +210,9 @@ public class ApiGenerator {
 			pages = Optional.ofNullable(prop.getProperty("pages")).orElse("");
 			total = Optional.ofNullable(prop.getProperty("total")).orElse("");
 			paginator = Optional.ofNullable(prop.getProperty("paginator")).orElse("pageHelper");
+			urlPrefix = Optional.ofNullable(prop.getProperty("url_prefix")).orElse("");
+			urlSuffix = Optional.ofNullable(prop.getProperty("url_suffix")).orElse("");
+			baseController = Optional.ofNullable(prop.getProperty("base_controller")).orElse("");
 			consumes = Optional.ofNullable(prop.getProperty("consumes")).orElse("");
 			combineAddUpdateStr = Optional.ofNullable(prop.getProperty("combine_add_update")).orElse("");
 			orderField = Optional.ofNullable(prop.getProperty("order_field")).orElse("");
@@ -242,6 +249,7 @@ public class ApiGenerator {
 		stringUtil = StringUtil.getSimpleClassName(stringUtilFullName);
 		getIdUtil = StringUtil.getSimpleClassName(getIdUtilFullName);
 		getIdParamArr = getIdParams.split(",");
+		baseControllerShortName = StringUtil.getSimpleClassName(baseController);
 		combineAddUpdate = "true".equalsIgnoreCase(combineAddUpdateStr);
 		active = Optional.ofNullable(active).orElse("");
 		activeCode = Optional.ofNullable(activeCode).orElse("");
@@ -1361,10 +1369,15 @@ public class ApiGenerator {
 	 * 生成controller文件
 	 */
 	private void generateController(String parentPath, String packageName) throws IOException {
+		String classNamePrefix = urlPrefix.replaceAll("/", "");
+		String classNameSuffix = urlSuffix.replaceAll("/", "");
 		for (Table table : tables) {
 			String tableName = table.getTableName();
 			String entityName = getEntityName(tableName);
-			String controllerName = entityName + "Controller";
+			String controllerName = String.format("%s%s%sController",
+						StringUtil.urlToTitleCamelCase(classNamePrefix),
+						entityName,
+						StringUtil.urlToTitleCamelCase(classNameSuffix));
 			String serviceName = entityName + "Service";
 			String serviceVarName = StringUtil.classNameToVarName(serviceName);
 
@@ -1390,11 +1403,40 @@ public class ApiGenerator {
 			if (needList && !responseResultFullName.equals(listResponseResultFullName)) {
 				builder.append("import ").append(listResponseResultFullName).append(";\n");
 			}
-			builder.append("import ").append(queryFullName).append(";\n\n");
+			builder.append("import ").append(queryFullName).append(";\n");
+			if (!StringUtil.isEmpty(baseController)) {
+				builder.append("import ").append(baseController).append(";\n");
+			}
+			builder.append('\n');
 			
 			builder.append("@RestController\n");
-			builder.append("@RequestMapping(\"/").append(entityName.toLowerCase()).append("\")\n");
-			builder.append("public class ").append(controllerName).append(" {\n\n");
+			builder.append("@RequestMapping(\"");
+			if (!StringUtil.isEmpty(urlPrefix)) {
+				if (!urlPrefix.startsWith("/")) {
+					builder.append('/');
+				}
+				builder.append(urlPrefix);
+			}
+			if (builder.charAt(builder.length() - 1) != '/') {
+				builder.append('/');
+			}
+			builder.append(StringUtil.classNameToVarName(entityName));
+			if (!StringUtil.isEmpty(classNameSuffix)) {
+				if (!urlSuffix.startsWith("/")) {
+					builder.append('/');
+				}
+				builder.append(urlSuffix);
+				if (builder.charAt(builder.length() - 1) == '/') {
+					builder.deleteCharAt(builder.length() - 1);
+				}
+			}
+			builder.append("\")\n");
+			
+			builder.append("public class ").append(controllerName);
+			if (!StringUtil.isEmpty(baseControllerShortName)) {
+				builder.append(" extends ").append(baseControllerShortName);
+			}
+			builder.append(" {\n\n");
 			
 			builder.append("\t@Resource\n");
 			builder.append("\tprivate I").append(serviceName).append(" ").append(serviceVarName).append(";\n\n");
