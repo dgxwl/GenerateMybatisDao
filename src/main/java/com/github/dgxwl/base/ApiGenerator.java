@@ -1,11 +1,22 @@
 package com.github.dgxwl.base;
 
+import com.github.dgxwl.base.entity.Column;
+import com.github.dgxwl.base.entity.PrimaryKey;
+import com.github.dgxwl.base.entity.Table;
+import com.github.dgxwl.base.handler.paginator.PaginatorHandler;
+import com.github.dgxwl.base.handler.TableHandler;
+import com.github.dgxwl.base.handler.paginator.strategy.IPaginatorStrategy;
+import com.github.dgxwl.util.DBUtils;
+import com.github.dgxwl.util.FileUtil;
+import com.github.dgxwl.util.StringUtil;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -13,15 +24,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-
-import com.github.dgxwl.base.entity.Column;
-import com.github.dgxwl.base.entity.PrimaryKey;
-import com.github.dgxwl.base.entity.Table;
-import com.github.dgxwl.base.handler.PaginatorHandler;
-import com.github.dgxwl.base.handler.TableHandler;
-import com.github.dgxwl.util.DBUtils;
-import com.github.dgxwl.util.FileUtil;
-import com.github.dgxwl.util.StringUtil;
 
 /**
  * 生成代码文件
@@ -32,20 +34,29 @@ public class ApiGenerator {
 	
 	private List<Table> tables;
 	private List<String> entityNames;
-	private String tablesStr;
+	private Set<String> tableSet;
 	private String oneToMany;
 
 	private static String path;
 	private static String packageName;
 	private static String defaultTablesStr;
+	private static Set<String> defaultTableSet;
 	private static String defaultOneToMany;
 	static {
 		Properties config = DBUtils.getConfigs();
 		path = config.getProperty("path");
 		packageName = config.getProperty("package");
 
-		defaultTablesStr = config.getProperty("tables");
-		defaultOneToMany = config.getProperty("one_to_many");
+		defaultTableSet = new HashSet<>();
+		defaultTablesStr = Optional.ofNullable(config.getProperty("tables")).orElse("");
+		String[] dtsSplit = defaultTablesStr.split(",");
+		defaultTableSet.addAll(Arrays.asList(dtsSplit));
+		defaultOneToMany = Optional.ofNullable(config.getProperty("one_to_many")).orElse("");
+		dtsSplit = defaultOneToMany.split("[\\s]*[,，][\\s]*");
+		for (String s : dtsSplit) {
+			String[] spl = s.split("[\\s]*:[\\s]*");
+			defaultTableSet.add(spl[0]);
+		}
 	}
 	//映射SQL数据类型和Java数据类型
 	private static Map<String, String> typeMap = new HashMap<>();
@@ -152,6 +163,8 @@ public class ApiGenerator {
 	private static String baseController;
 	private static String baseControllerShortName;
 	private static String consumes;
+	private static String combineAddUpdateStr;
+	private static boolean combineAddUpdate;
 	private static String orderField;
 	private static String orderType;
 	private static String orderFieldVal;
@@ -201,6 +214,7 @@ public class ApiGenerator {
 			urlSuffix = Optional.ofNullable(prop.getProperty("url_suffix")).orElse("");
 			baseController = Optional.ofNullable(prop.getProperty("base_controller")).orElse("");
 			consumes = Optional.ofNullable(prop.getProperty("consumes")).orElse("");
+			combineAddUpdateStr = Optional.ofNullable(prop.getProperty("combine_add_update")).orElse("");
 			orderField = Optional.ofNullable(prop.getProperty("order_field")).orElse("");
 			orderType = Optional.ofNullable(prop.getProperty("order_type")).orElse("");
 			orderFieldVal = Optional.ofNullable(prop.getProperty("order_field_val")).orElse("");
@@ -236,6 +250,7 @@ public class ApiGenerator {
 		getIdUtil = StringUtil.getSimpleClassName(getIdUtilFullName);
 		getIdParamArr = getIdParams.split(",");
 		baseControllerShortName = StringUtil.getSimpleClassName(baseController);
+		combineAddUpdate = "true".equalsIgnoreCase(combineAddUpdateStr);
 		active = Optional.ofNullable(active).orElse("");
 		activeCode = Optional.ofNullable(activeCode).orElse("");
 		List<String> needs = Arrays.asList(need.split("[\\s]*,[\\s]*"));
@@ -249,14 +264,14 @@ public class ApiGenerator {
 		needBatchDelete = needs.contains("batchDelete");
 	}
 
-	public ApiGenerator(String tablesStr, String oneToMany) {
-		this.tablesStr = tablesStr;
+	public ApiGenerator(Set<String> tableSet, String oneToMany) {
+		this.tableSet = tableSet;
 		this.oneToMany = oneToMany;
 	}
 
 	public static void main(String[] args) {
 		try {
-			new ApiGenerator(defaultTablesStr, defaultOneToMany).generate();
+			new ApiGenerator(defaultTableSet, defaultOneToMany).generate();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -264,7 +279,7 @@ public class ApiGenerator {
 	
 	public void generate() throws IOException {
 		TableHandler tableHandler = new TableHandler();
-		tableHandler.readTables(tablesStr, oneToMany);
+		tableHandler.readTables(tableSet, oneToMany);
 		tables = tableHandler.getTables();
 		entityNames = tableHandler.getEntityNames();
 
@@ -406,12 +421,15 @@ public class ApiGenerator {
 			if (needList || hasSlave) {
 				builder.append("import java.util.List;\n");
 			}
-			builder.append(PaginatorHandler.getMapperImportStr(paginator)).append("\n");
+            IPaginatorStrategy strategy = PaginatorHandler.getStrategy(paginator);
+			if (strategy != null) {
+                builder.append(strategy.getMapperImport()).append("\n");
+            }
 
 			builder.append("public interface ").append(mapperName).append(" {\n\n");
 
 			//add
-			if (needAdd || needSet) {
+			if (needAdd) {
 				builder.append("\tInteger add(").append(entityName).append(" entity);\n\n");
 			}
 
@@ -436,21 +454,13 @@ public class ApiGenerator {
 			}
 
 			//update
-			if (keyName != null && (needUpdate || needSet)) {
+			if (keyName != null && needUpdate) {
 				builder.append("\tInteger " + "update(").append(entityName).append(" entity);\n\n");
 			}
 
 			//list
 			if (needList) {
-				switch (paginator) {
-					case "pageHelper":
-						builder.append("\tList<").append(entityName).append("> list(@Param(\"").append(queryVarName)
-								.append("\") ").append(queryName).append(" ").append(queryVarName).append(");\n\n");
-					case "mybatis-paginator":
-						builder.append("\tPageList<").append(entityName).append("> list(@Param(\"").append(queryVarName)
-								.append("\") ").append(queryName).append(" ").append(queryVarName)
-								.append(", @Param(\"pageBounds\") PageBounds pageBounds);\n\n");
-				}
+				PaginatorHandler.getStrategy(paginator).getMapperListDefines(builder, entityName, queryName, queryVarName);
 			}
 
 			if (keyName != null) {
@@ -520,7 +530,7 @@ public class ApiGenerator {
 			builder.append("  \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\">\n\n");
 			
 			builder.append("<mapper namespace=\"").append(packageName).append('.').append(mapperPackageName)
-					.append('.').append(entityName).append("Mapper\">\n\n");
+				.append('.').append(entityName).append("Mapper\">\n\n");
 
 			String keyName = null;
 			String idName = null;
@@ -639,7 +649,7 @@ public class ApiGenerator {
 			builder.append("\t</sql>\n\n");
 
 			//add
-			if (needAdd || needSet) {
+			if (needAdd) {
 				builder.append("\t<insert id=\"add\"").append(pkIncrementStr)
 						.append(" parameterType=\"").append(packageName).append(".entity.").append(entityName).append("\">\n");
 				builder.append("\t\tINSERT INTO ").append(tableName).append(" (\n");
@@ -663,7 +673,7 @@ public class ApiGenerator {
 			}
 
 			//update
-			if (keyName != null && (needUpdate || needSet)) {
+			if (keyName != null && needUpdate) {
 				builder.append("\t<update id=\"update\" parameterType=\"")
 						.append(packageName).append(".entity.").append(entityName).append("\">\n");
 				builder.append("\t\tUPDATE ").append(tableName).append("\n");
@@ -856,7 +866,7 @@ public class ApiGenerator {
 				lrrGenericName = lrrGenericName + "<" + entityName + ">";
 			}
 
-			if (needSet) {
+			if (keyName != null && combineAddUpdate && needSet) {
 				builder.append("\t").append(rrGenericIdName).append(" set(").append(entityName).append(" entity);\n\n");
 			}
 
@@ -952,7 +962,10 @@ public class ApiGenerator {
 			builder.append("import org.springframework.stereotype.Service;\n");
 			builder.append("import javax.annotation.Resource;\n");
 			builder.append("import org.springframework.transaction.annotation.Transactional;\n");
-			builder.append(PaginatorHandler.getServiceImportStr(paginator));
+            IPaginatorStrategy strategy = PaginatorHandler.getStrategy(paginator);
+            if (strategy != null) {
+                builder.append(strategy.getServiceImport());
+            }
 			builder.append("import ").append(packageName).append(".service.inter.").append(iServiceName).append(";\n");
 			builder.append("import ").append(packageName).append('.').append(mapperPackageName).append('.').append(entityName).append("Mapper;\n");
 			builder.append("import ").append(packageName).append(".entity.").append(entityName).append(";\n");
@@ -991,7 +1004,7 @@ public class ApiGenerator {
 			builder.append("\t@Resource\n");
 			builder.append("\tprivate ").append(mapperName).append(" ").append(mapperVarName).append(";\n\n");
 
-			if (needSet) {
+			if (keyName != null && combineAddUpdate && needSet) {
 				if (hasSlave) {
 					builder.append("\t@Transactional\n");
 				}
@@ -1000,100 +1013,88 @@ public class ApiGenerator {
 				builder.append("\t\tif (entity == null) {\n");
 				builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少参数\");\n");
 				builder.append("\t\t}\n");
-
-				if (!needAdd && !needUpdate) {
+				if (hasSlave) {
 					builder.append("\t\tString s = this.checkParam(entity);\n");
 					builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
 					builder.append("\t\t}\n\n");
 					builder.append("\t\tDate date = new Date();\n");
-					if (!StringUtil.isEmpty(updatedDate)) {
-						builder.append("\t\tentity.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
-					}
-					if (!StringUtil.isEmpty(updatedBy)) {
-						builder.append("\t\t//TODO entity.set").append(StringUtil.toTitleCase(updatedBy)).append("(by whom);\n");
-					}
-					if (!StringUtil.isEmpty(active)) {
-						builder.append("\t\tentity.set").append(StringUtil.toTitleCase(active)).append("(").append(activeCode).append(");\n");
-					}
-					builder.append('\n');
 				}
-				
 				if ("String".equals(keyType)) {
 					builder.append("\t\tif (").append(stringUtil).append('.').append(stringIsEmpty)
 							.append('(').append("entity.get").append(StringUtil.toTitleCase(camelKeyName)).append("())").append(") {\n");
 				} else {
 					builder.append("\t\tif (").append("entity.get").append(StringUtil.toTitleCase(camelKeyName)).append("() == null").append(") {\n");
 				}
-				
-				if (needAdd) {
-					builder.append("\t\t\treturn this.add(entity);\n");
-				} else {
+				if (hasSlave) {
 					if ("String".equals(keyType)) {
 						builder.append("\t\t\tentity.set").append(StringUtil.toTitleCase(camelKeyName)).append('(').append(getIdUtil).append('.')
 								.append(getIdMethod).append('(').append(String.join(", ", getIdParamArr)).append("));\n");
 					}
-					if (!StringUtil.isEmpty(createdDate)) {
+					if (!"".equals(createdDate)) {
 						builder.append("\t\t\tentity.set").append(StringUtil.toTitleCase(createdDate)).append("(date);\n");
 					}
-					if (!StringUtil.isEmpty(createdBy)) {
+					if (!"".equals(createdBy)) {
 						builder.append("\t\t\t//TODO entity.set").append(StringUtil.toTitleCase(createdBy)).append("(by whom);\n");
 					}
-					builder.append("\t\t\tif (").append(mapperVarName).append(".add(entity) < 1) {\n");
-					builder.append("\t\t\t\tthrow new IllegalStateException(\"保存失败\");\n");
-					builder.append("\t\t\t}\n");
-				}
-				builder.append("\t\t}");
-				if (keyName != null) {
-					builder.append(" else {\n");
-					if (needUpdate) {
-						builder.append("\t\t\treturn this.update(entity);\n");
-					} else {
-						builder.append("\t\t\tif (").append(mapperVarName).append(".update(entity) < 1) {\n");
-						builder.append("\t\t\t\tthrow new IllegalStateException(\"编辑失败\");\n");
-						builder.append("\t\t\t}\n");
-						if (hasSlave) {
-							for (Table slave : slaves) {
-								String slaveTableName = slave.getTableName();
-								String slaveEntityName = getEntityName(slaveTableName);
-								builder.append("\t\t\t").append(mapperVarName).append(".deleteAll").append(slaveEntityName).append('(')
-										.append(camelKeyName).append(");\n");
-							}
-						}
+					if (!"".equals(active)) {
+						builder.append("\t\t\tentity.set").append(StringUtil.toTitleCase(active)).append("(").append(activeCode).append(");\n");
 					}
-					builder.append("\t\t}\n");
+					builder.append("\t\t\tif (").append(mapperVarName).append(".add(entity) < 1) {\n");
+					builder.append("\t\t\t\treturn new ").append(rrDiamondName).append("(")
+							.append(errorCode).append(", \"保存失败\");\n");
+					builder.append("\t\t\t}\n");
 				} else {
-					builder.append('\n');
+					builder.append("\t\t\treturn this.add(entity);\n");
 				}
-				
-//				if (hasSlave) {
-//					builder.append("\t\t\t").append(keyType).append(' ').append(camelKeyName).append(" = entity.get")
-//							.append(titleKeyName).append("();\n");
-//					for (Table slave : slaves) {
-//						String slaveTableName = slave.getTableName();
-//						String slaveEntityName = getEntityName(slaveTableName);
-//						builder.append("\t\t\t").append(mapperVarName).append(".deleteAll").append(slaveEntityName).append('(')
-//								.append(camelKeyName).append(");\n");
-//					}
-//					if (keyName == null) {
-//						builder.append("/*");
-//					}
-//					builder.append("\t\t\tif (").append(mapperVarName).append(".update(entity) < 1) {\n");
-//					builder.append("\t\t\t\tthrow new IllegalStateException(\"编辑失败\");\n");
-//					builder.append("\t\t\t}\n");
-//					if (keyName == null) {
-//						builder.append("*/");
-//					}
-//				} else {
-//					if (keyName == null) {
-//						builder.append("//");
-//					}
-//					builder.append("\t\t\treturn this.update(entity);\n");
-//				}
-//				builder.append("\t\t}\n");
-				if (hasSlave && !(needAdd && needUpdate)) {
+				builder.append("\t\t} else {\n");
+				if (hasSlave) {
+					if (!"".equals(updatedDate)) {
+						builder.append("\t\t\tentity.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
+					}
+					if (!"".equals(updatedBy)) {
+						builder.append("\t\t\t//TODO entity.set").append(StringUtil.toTitleCase(updatedBy)).append("(by whom);\n");
+					}
+					builder.append("\t\t\t").append(keyType).append(' ').append(camelKeyName).append(" = entity.get")
+							.append(titleKeyName).append("();\n");
+					for (Table slave : slaves) {
+						String slaveTableName = slave.getTableName();
+						String slaveEntityName = getEntityName(slaveTableName);
+						builder.append("\t\t\t").append(mapperVarName).append(".deleteAll").append(slaveEntityName).append('(')
+								.append(camelKeyName).append(");\n");
+					}
+					builder.append("\t\t\tif (").append(mapperVarName).append(".update(entity) < 1) {\n");
+					builder.append("\t\t\t\tthrow new IllegalStateException(\"编辑失败\");\n");
+					builder.append("\t\t\t}\n");
+				} else {
+					builder.append("\t\t\treturn this.update(entity);\n");
+				}
+				builder.append("\t\t}\n");
+				if (hasSlave) {
 					builder.append('\n');
-					builder.append("\t\t").append("this.addSlaves(entity);\n\n");
+					for (Table slave : slaves) {
+						String slaveTableName = slave.getTableName();
+						String slaveEntityName = getEntityName(slaveTableName);
+						String listName = StringUtil.classNameToVarName(slaveEntityName) + 's';
+						builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
+								.append(" = entity.get").append(slaveEntityName).append("s();\n");
+						builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
+						builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+						builder.append("\t\t\t\t//TODO setId()\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(camelKeyName)).append("(entity.get")
+								.append(StringUtil.toTitleCase(camelKeyName)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(createdDate)).append("(date);\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(createdBy))
+								.append("(entity.get").append(StringUtil.toTitleCase(createdBy)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(updatedBy))
+								.append("(entity.get").append(StringUtil.toTitleCase(updatedBy)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(active)).append('(').append(activeCode).append(");\n");
+						builder.append("\t\t\t}\n");
+						builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
+								.append(listName).append(");\n");
+						builder.append("\t\t}\n\n");
+					}
 					builder.append("\t\t").append(rrGenericIdName).append(' ').append(responseResultVarName).append(" = new ")
 											.append(rrDiamondName).append("(\"操作成功\");\n");
 					builder.append("\t\t").append(responseResultVarName)
@@ -1109,9 +1110,6 @@ public class ApiGenerator {
 				}
 				builder.append("\t@Override\n");
 				builder.append("\tpublic ").append(rrGenericIdName).append(" add(").append(entityName).append(" entity) {\n");
-				builder.append("\t\tif (entity == null) {\n");
-				builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少参数\");\n");
-				builder.append("\t\t}\n");
 				builder.append("\t\tString s = this.checkParam(entity);\n");
 				builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
 				builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
@@ -1120,25 +1118,14 @@ public class ApiGenerator {
 					builder.append("\t\tentity.set").append(StringUtil.toTitleCase(camelKeyName)).append('(').append(getIdUtil).append('.')
 							.append(getIdMethod).append('(').append(String.join(", ", getIdParamArr)).append("));\n");
 				}
-				boolean newDateFlag = false;
-				if (!StringUtil.isEmpty(createdDate)) {
-					newDateFlag = true;
+				if (!"".equals(createdDate)) {
 					builder.append("\t\tDate date = new Date();\n");
 					builder.append("\t\tentity.set").append(StringUtil.toTitleCase(createdDate)).append("(date);\n");
 				}
-				if (!StringUtil.isEmpty(createdBy)) {
+				if (!"".equals(createdBy)) {
 					builder.append("\t\t//TODO entity.set").append(StringUtil.toTitleCase(createdBy)).append("(by whom);\n");
 				}
-				if (!StringUtil.isEmpty(updatedDate)) {
-					if (!newDateFlag) {
-						builder.append("\t\tDate date = new Date();\n");
-					}
-					builder.append("\t\tentity.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
-				}
-				if (!StringUtil.isEmpty(updatedBy)) {
-					builder.append("\t\t//TODO entity.set").append(StringUtil.toTitleCase(updatedBy)).append("(by whom);\n");
-				}
-				if (!StringUtil.isEmpty(active)) {
+				if (!"".equals(active)) {
 					builder.append("\t\tentity.set").append(StringUtil.toTitleCase(active)).append("(").append(activeCode).append(");\n");
 				}
 				builder.append("\t\tif (").append(mapperVarName).append(".add(entity) < 1) {\n");
@@ -1146,7 +1133,31 @@ public class ApiGenerator {
 						.append(errorCode).append(", \"保存失败\");\n");
 				builder.append("\t\t}\n\n");
 				if (hasSlave) {
-					builder.append("\t\t").append("this.addSlaves(entity);\n\n");
+					for (Table slave : slaves) {
+						String slaveTableName = slave.getTableName();
+						String slaveEntityName = getEntityName(slaveTableName);
+
+						String listName = StringUtil.classNameToVarName(slaveEntityName) + 's';
+						builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
+								.append(" = entity.get").append(slaveEntityName).append("s();\n");
+						builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
+						builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+						builder.append("\t\t\t\t//TODO setId()\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(camelKeyName)).append("(entity.get")
+								.append(StringUtil.toTitleCase(camelKeyName)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(createdDate)).append("(date);\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(createdBy))
+								.append("(entity.get").append(StringUtil.toTitleCase(createdBy)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(updatedBy))
+								.append("(entity.get").append(StringUtil.toTitleCase(updatedBy)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(active)).append('(').append(activeCode).append(");\n");
+						builder.append("\t\t\t}\n");
+						builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
+								.append(listName).append(");\n");
+						builder.append("\t\t}\n\n");
+					}
+					builder.append('\n');
 				}
 				builder.append("\t\t").append(rrGenericIdName).append(' ').append(responseResultVarName).append(" = new ")
 										.append(rrDiamondName).append("(\"保存成功\");\n");
@@ -1162,9 +1173,6 @@ public class ApiGenerator {
 				}
 				builder.append("\t@Override\n");
 				builder.append("\tpublic ").append(rrGenericIdName).append(" update(").append(entityName).append(" entity) {\n");
-				builder.append("\t\tif (entity == null) {\n");
-				builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", \"缺少参数\");\n");
-				builder.append("\t\t}\n");
 				builder.append("\t\t").append(keyType).append(' ').append(camelKeyName).append(" = entity.get")
 						.append(StringUtil.toTitleCase(camelKeyName)).append("();\n");
 				if ("String".equals(keyType)) {
@@ -1179,17 +1187,13 @@ public class ApiGenerator {
 				builder.append("\t\tif (!").append(stringUtil).append('.').append(stringIsEmpty).append("(s)").append(") {\n");
 				builder.append("\t\t\treturn new ").append(rrDiamondName).append("(").append(errorCode).append(", s);\n");
 				builder.append("\t\t}\n");
-				if (!StringUtil.isEmpty(updatedDate)) {
+				if (!"".equals(updatedDate)) {
 					builder.append("\t\tDate date = new Date();\n");
 					builder.append("\t\tentity.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
 				}
-				if (!StringUtil.isEmpty(updatedBy)) {
+				if (!"".equals(updatedBy)) {
 					builder.append("\t\t//TODO entity.set").append(StringUtil.toTitleCase(updatedBy)).append("(by whom);\n");
 				}
-				builder.append("\t\tif (").append(mapperVarName).append(".update(entity) < 1) {\n");
-				builder.append("\t\t\treturn new ").append(rrDiamondName)
-						.append("(").append(errorCode).append(", \"编辑失败\");\n");
-				builder.append("\t\t}\n");
 				if (hasSlave) {
 					builder.append('\n');
 					for (Table slave : slaves) {
@@ -1197,9 +1201,31 @@ public class ApiGenerator {
 						String slaveEntityName = getEntityName(slaveTableName);
 						builder.append("\t\t").append(mapperVarName).append(".deleteAll").append(slaveEntityName).append('(')
 								.append(camelKeyName).append(");\n");
+						String listName = StringUtil.classNameToVarName(slaveEntityName) + 's';
+						builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
+								.append(" = entity.get").append(slaveEntityName).append("s();\n");
+						builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
+						builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
+						builder.append("\t\t\t\t//TODO setId()\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(camelKeyName)).append("(entity.get")
+								.append(StringUtil.toTitleCase(camelKeyName)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(createdDate)).append("(date);\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(updatedDate)).append("(date);\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(createdBy))
+								.append("(entity.get").append(StringUtil.toTitleCase(createdBy)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(updatedBy))
+								.append("(entity.get").append(StringUtil.toTitleCase(updatedBy)).append("());\n");
+						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(active)).append('(').append(activeCode).append(");\n");
+						builder.append("\t\t\t}\n");
+						builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
+								.append(listName).append(");\n");
+						builder.append("\t\t}\n\n");
 					}
-					builder.append("\t\t").append("this.addSlaves(entity);\n\n");
 				}
+				builder.append("\t\tif (").append(mapperVarName).append(".update(entity) < 1) {\n");
+				builder.append("\t\t\treturn new ").append(rrDiamondName)
+						.append("(").append(errorCode).append(", \"编辑失败\");\n");
+				builder.append("\t\t}\n");
 				builder.append("\t\treturn new ").append(rrDiamondName).append("(\"编辑成功\");\n");
 				builder.append("\t}\n\n");
 			}
@@ -1224,34 +1250,10 @@ public class ApiGenerator {
 
 				String titleTotal = StringUtil.toTitleCase(total);
 				String titlePages = StringUtil.toTitleCase(pages);
-				switch (paginator) {
-					case "pageHelper":
-						builder.append("\t\tPageHelper.startPage(").append(queryVarName).append(".getPage(), ")
-								.append(queryVarName).append(".getLimit(), true);\n");
-						builder.append("\t\tList<").append(entityName).append("> list = ").append(mapperVarName)
-								.append(".list(").append(queryVarName).append(");\n");
-						builder.append("\t\t").append(lrrGenericName).append(" ")
-								.append(lrrGenericName).append(" = new ").append(lrrDiamondName).append("();\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(StringUtil.toTitleCase(listRrData)).append("(list);\n");
-						builder.append("\t\t").append(responseResultVarName)
-								.append(".set").append(titleTotal)
-								.append("((int)((Page<").append(entityName).append(">)list).getTotal());\n");
-						builder.append("\t\t").append(responseResultVarName)
-								.append(".set").append(titlePages)
-								.append("((int)((Page<").append(entityName).append(">)list).getPages());\n");
-						break;
-					case "mybatis-paginator":
-						builder.append("\t\tPageList<").append(entityName).append("> list = ").append(mapperVarName)
-								.append(".list(").append(queryVarName).append(", new PageBounds(").append(queryVarName)
-								.append(".getPage(), ").append(queryVarName).append(".getLimit()));\n");
-						builder.append("\t\t").append(lrrGenericName).append(" ")
-								.append(responseResultVarName).append(" = new ").append(lrrDiamondName).append("();\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(StringUtil.toTitleCase(listRrData)).append("(list);\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(titleTotal)
-								.append("(list.getPaginator().getTotalCount());\n");
-						builder.append("\t\t").append(responseResultVarName).append(".set").append(titlePages)
-								.append("(list.getPaginator().getTotalPages());\n");
-				}
+				PaginatorHandler.getStrategy(paginator).getServiceListBusinessLogic(
+				        builder, queryVarName, entityName, mapperVarName, lrrGenericName, lrrDiamondName,
+                        responseResultVarName, listRrData, titleTotal, titlePages
+                );
 				builder.append("\t\treturn ").append(responseResultVarName).append(";\n");
 				builder.append("\t}\n\n");
 			}
@@ -1349,50 +1351,6 @@ public class ApiGenerator {
 			}
 
 			if (needSet || needAdd || needUpdate) {
-				//addSlaves
-				if (hasSlave) {
-					builder.append("\tprivate void addSlaves(").append(entityName).append(" entity) {");
-					for (Table slave : slaves) {
-						String slaveTableName = slave.getTableName();
-						String slaveEntityName = getEntityName(slaveTableName);
-
-						builder.append('\n');
-						String listName = StringUtil.classNameToVarName(slaveEntityName) + 's';
-						builder.append("\t\tList<").append(slaveEntityName).append("> ").append(listName)
-								.append(" = entity.get").append(slaveEntityName).append("s();\n");
-						builder.append("\t\tif (!CollectionUtils.isEmpty(").append(listName).append(")) {\n");
-						builder.append("\t\t\tfor (").append(slaveEntityName).append(" line : ").append(listName).append(") {\n");
-						builder.append("\t\t\t\t//TODO setId()\n");
-						builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(camelKeyName)).append("(entity.get")
-								.append(StringUtil.toTitleCase(camelKeyName)).append("());\n");
-						if (!StringUtil.isEmpty(createdDate)) {
-							String titleCreatedDate = StringUtil.toTitleCase(createdDate);
-							builder.append("\t\t\t\tline.set").append(titleCreatedDate).append("(entity.get").append(titleCreatedDate).append("());\n");							
-						}
-						if (!StringUtil.isEmpty(createdBy)) {
-							String titleCreatedBy = StringUtil.toTitleCase(createdBy);
-							builder.append("\t\t\t\tline.set").append(titleCreatedBy).append("(entity.get").append(titleCreatedBy).append("());\n");
-						}
-						if (!StringUtil.isEmpty(updatedDate)) {
-							String titleUpdatedDate = StringUtil.toTitleCase(updatedDate);
-							builder.append("\t\t\t\tline.set").append(titleUpdatedDate).append("(entity.get").append(titleUpdatedDate).append("());\n");							
-						}
-						if (!StringUtil.isEmpty(updatedBy)) {
-							String titleUpdatedBy = StringUtil.toTitleCase(updatedBy);
-							builder.append("\t\t\t\tline.set").append(titleUpdatedBy).append("(entity.get").append(titleUpdatedBy).append("());\n");
-						}
-						if (!StringUtil.isEmpty(active)) {
-							builder.append("\t\t\t\tline.set").append(StringUtil.toTitleCase(active)).append('(').append(activeCode).append(");\n");
-						}
-						builder.append("\t\t\t}\n");
-						builder.append("\t\t\t").append(mapperVarName).append(".addAll").append(slaveEntityName).append('(')
-								.append(listName).append(");\n");
-						builder.append("\t\t}\n");
-					}
-					builder.append("\t}\n\n");
-				}
-				
-				//checkParam
 				builder.append("\tprivate String checkParam(").append(entityName).append(" entity) {\n");
 				builder.append("\t\t//TODO 校验参数逻辑,返回错误提示\n");
 				builder.append("\t\treturn \"\";\n");
@@ -1519,8 +1477,8 @@ public class ApiGenerator {
 			if ("json".equalsIgnoreCase(consumes)) {
 				consumeStr = "@RequestBody ";
 			}
-			
-			if (needSet) {
+
+			if (keyName != null && combineAddUpdate && needSet) {
 				builder.append("\t@RequestMapping(value = \"/set\", method = RequestMethod.POST)\n");
 				builder.append("\tpublic ").append(rrGenericIdName).append(" set(")
 						.append(consumeStr).append(entityName).append(" entity) {\n");
@@ -1537,43 +1495,43 @@ public class ApiGenerator {
 						.append("(").append(errorCode).append(", ").append("\"服务器异常\");\n");
 				builder.append("\t\t}\n");
 				builder.append("\t}\n\n");
-			}
-			
-			if (needAdd) {
-				builder.append("\t@RequestMapping(value = \"/add\", method = RequestMethod.POST)\n");
-				builder.append("\tpublic ").append(rrGenericIdName).append(" add(")
-						.append(consumeStr).append(entityName).append(" entity) {\n");
-				builder.append("\t\ttry {\n");
-				builder.append("\t\t\treturn ").append(serviceVarName).append(".add(entity);\n");
-				if (hasSlave) {
-					builder.append("\t\t} catch (IllegalStateException e) {\n");
+			} else if (!combineAddUpdate) {
+				if (needAdd) {
+					builder.append("\t@RequestMapping(value = \"/add\", method = RequestMethod.POST)\n");
+					builder.append("\tpublic ").append(rrGenericIdName).append(" add(")
+							.append(consumeStr).append(entityName).append(" entity) {\n");
+					builder.append("\t\ttry {\n");
+					builder.append("\t\t\treturn ").append(serviceVarName).append(".add(entity);\n");
+					if (hasSlave) {
+						builder.append("\t\t} catch (IllegalStateException e) {\n");
+						builder.append("\t\t\treturn new ").append(rrDiamondName)
+								.append("(").append(errorCode).append(", e.getMessage());\n");
+					}
+					builder.append("\t\t} catch (Exception e) {\n");
+					builder.append("\t\t\tlogger.error(\"\", e);\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName)
-							.append("(").append(errorCode).append(", e.getMessage());\n");
+							.append("(").append(errorCode).append(", ").append("\"服务器异常\");\n");
+					builder.append("\t\t}\n");
+					builder.append("\t}\n\n");
 				}
-				builder.append("\t\t} catch (Exception e) {\n");
-				builder.append("\t\t\tlogger.error(\"\", e);\n");
-				builder.append("\t\t\treturn new ").append(rrDiamondName)
-						.append("(").append(errorCode).append(", ").append("\"服务器异常\");\n");
-				builder.append("\t\t}\n");
-				builder.append("\t}\n\n");
-			}
 
-			if (keyName != null && needUpdate) {
-				builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
-				builder.append("\tpublic ").append(rrGenericIdName).append(" update(").append(consumeStr).append(entityName).append(" entity) {\n");
-				builder.append("\t\ttry {\n");
-				builder.append("\t\t\treturn ").append(serviceVarName).append(".update(entity);\n");
-				if (hasSlave) {
-					builder.append("\t\t} catch (IllegalStateException e) {\n");
+				if (keyName != null && needUpdate) {
+					builder.append("\t@RequestMapping(value = \"/update\", method = RequestMethod.POST)\n");
+					builder.append("\tpublic ").append(rrGenericIdName).append(" update(").append(consumeStr).append(entityName).append(" entity) {\n");
+					builder.append("\t\ttry {\n");
+					builder.append("\t\t\treturn ").append(serviceVarName).append(".update(entity);\n");
+					if (hasSlave) {
+						builder.append("\t\t} catch (IllegalStateException e) {\n");
+						builder.append("\t\t\treturn new ").append(rrDiamondName)
+								.append("(").append(errorCode).append(", e.getMessage());\n");
+					}
+					builder.append("\t\t} catch (Exception e) {\n");
+					builder.append("\t\t\tlogger.error(\"\", e);\n");
 					builder.append("\t\t\treturn new ").append(rrDiamondName)
-							.append("(").append(errorCode).append(", e.getMessage());\n");
+							.append("(").append(errorCode).append(", ").append("\"服务器异常\");\n");
+					builder.append("\t\t}\n");
+					builder.append("\t}\n\n");
 				}
-				builder.append("\t\t} catch (Exception e) {\n");
-				builder.append("\t\t\tlogger.error(\"\", e);\n");
-				builder.append("\t\t\treturn new ").append(rrDiamondName)
-						.append("(").append(errorCode).append(", ").append("\"服务器异常\");\n");
-				builder.append("\t\t}\n");
-				builder.append("\t}\n\n");
 			}
 
 			if (needList) {
